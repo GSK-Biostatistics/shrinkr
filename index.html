@@ -89,10 +89,10 @@
 <h2 id="key-idea">Key Idea<a class="anchor" aria-label="anchor" href="#key-idea"></a>
 </h2>
 <ol style="list-style-type: decimal">
-<li><p><strong>Stage 1:</strong> Fit any Bayesian model (e.g., in Stan, NIMBLE, JAGS) <em>without shrinkage</em> using <strong>flat/uninformative priors</strong> on the parameters of interest.<br>
+<li><p><strong>Stage 1:</strong> Fit any Bayesian model (e.g., in Stan, NIMBLE, JAGS) without shrinkage using flat/uninformative priors on the parameters of interest.<br>
 Extract posterior draws of subgroup-specific parameters (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>θ</mi><mi>g</mi></msub><annotation encoding="application/x-tex">\theta_g</annotation></semantics></math>, the treatment effect or estimand of interest for each subgroup <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mi>G</mi></mrow><annotation encoding="application/x-tex">g = 1, \ldots G</annotation></semantics></math>).</p></li>
-<li><p><strong>Stage 2:</strong> Approximate those subgroup posteriors with a <strong>mixture of multivariate normals</strong>,<br>
-and then fit a <strong>hierarchical model</strong> across groups to borrow strength (“shrink”).</p></li>
+<li><p><strong>Stage 2:</strong> Approximate those subgroup posteriors with a mixture of multivariate normals,<br>
+and then fit a hierarchical model across groups to borrow strength (“shrink”).</p></li>
 </ol>
 <p>This modular approach lets you separate shrinkage from the first model—ideal for simulation pipelines, sensitivity checks, and Bayesian data borrowing.</p>
 <p><strong>When is this especially useful?</strong> The mixture approximation makes <code>shrinkr</code> particularly valuable in situations where the typical two-stage approach assuming a normal likelihood for Stage 1 posteriors is unlikely to hold—for example, small subgroups, rare events, skewed or multimodal posteriors, or complex survival models. By capturing non-normality through the Gaussian mixture, the Stage 2 shrinkage better reflects the actual uncertainty from Stage 1.</p>
