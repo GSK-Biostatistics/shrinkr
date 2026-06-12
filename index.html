@@ -47,7 +47,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/gsk-tech/shrinkr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/GSK-Biostatistics/shrinkr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -55,13 +55,19 @@
   </div>
 </nav><div class="container template-home">
 <div class="row">
-  <main id="main" class="col-md-9"><p align="center">
-<img src="reference/figures/shrinkr_hex_badge.png" width="250"></p>
-<p><a href="https://github.com/gsk-tech/shrinkr/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/gsk-tech/shrinkr/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a> <a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></p>
-<p><strong>Modular Bayesian Hierarchical Shrinkage Models</strong></p>
-<p><code>shrinkr</code> provides a flexible framework for <em>two-stage</em> Bayesian hierarchical modeling (BHM).<br>
-It lets you perform shrinkage of subgroup-specific posterior means from <em>any</em> Bayesian model in a modular way.</p>
+  <main id="main" class="col-md-9"><div class="section level1">
+<div class="page-header"><h1 id="shrinkr-">shrinkr <a href="https://gsk-biostatistics.github.io/shrinkr/" class="external-link"><img src="reference/figures/shrinkr_hex_badge.png" align="right" alt="shrinkr logo" style="height:139px;"></a>
+<a class="anchor" aria-label="anchor" href="#shrinkr-"></a>
+</h1></div>
+<div class="section level2">
+<h2 id="modular-bayesian-hierarchical-shrinkage-models">Modular Bayesian Hierarchical Shrinkage Models<a class="anchor" aria-label="anchor" href="#modular-bayesian-hierarchical-shrinkage-models"></a>
+</h2>
+<!-- badges: start -->
+
+<!-- badges: end -->
+<p><code>shrinkr</code> provides a flexible framework for two-stage Bayesian hierarchical modeling (BHM). By separating model fitting from hierarchical shrinkage, it allows subgroup-specific estimates from virtually any Bayesian model to be incorporated into a common borrowing framework.</p>
 <hr>
+</div>
 <div class="section level2">
 <h2 id="table-of-contents">Table of Contents<a class="anchor" aria-label="anchor" href="#table-of-contents"></a>
 </h2>
@@ -124,7 +130,7 @@ and then fit a <strong>hierarchical model</strong> across groups to borrow stren
 <h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/gsk-tech/shrinkr" class="external-link">shrinkr</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://gsk-biostatistics.github.io/shrinkr/" class="external-link">shrinkr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://pkg.mitchelloharawild.com/distributional/" class="external-link">distributional</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Step 1: Prepare posterior samples from your Stage 1 model</span></span>
@@ -342,7 +348,7 @@ and then fit a <strong>hierarchical model</strong> across groups to borrow stren
 <li>
 <strong>Stage 1:</strong> Can be computationally expensive (full Bayesian model fitting)</li>
 <li>
-<strong>Stage 2:</strong> Fast (typically &lt; 1 minute for 4-5 groups with 2000 iterations)</li>
+<strong>Stage 2:</strong> Fast (typically &lt; 1 second for 4-5 groups with 2000 iterations)</li>
 <li>
 <strong>Mixture fitting:</strong> Time scales with number of groups and posterior samples</li>
 <li>
@@ -468,12 +474,12 @@ R package version 0.4.3.</code></pre>
 <p>This package is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later). You are free to use, modify, and redistribute it under the terms of the GPL. See the <a href="LICENSE">LICENSE</a> file for the full text, or visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" class="external-link uri">https://www.gnu.org/licenses/gpl-3.0.html</a>.</p>
 <p>Portions of this package are derived from templates provided by the <a href="https://mc-stan.org/rstantools/" class="external-link">rstantools</a> project (Copyright © Trustees of Columbia University), also licensed under GPL-3.</p>
 </div>
-
+</div>
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
-<li><a href="https://github.com/gsk-tech/shrinkr/" class="external-link">Browse source code</a></li>
-<li><a href="https://github.com/gsk-tech/shrinkr/issues" class="external-link">Report a bug</a></li>
+<li><a href="https://github.com/GSK-Biostatistics/shrinkr/" class="external-link">Browse source code</a></li>
+<li><a href="https://github.com/GSK-Biostatistics/shrinkr/issues" class="external-link">Report a bug</a></li>
 </ul>
 </div>
 
@@ -501,7 +507,13 @@ R package version 0.4.3.</code></pre>
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
+<li><a href="https://github.com/GSK-Biostatistics/shrinkr/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/GSK-Biostatistics/shrinkr/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>

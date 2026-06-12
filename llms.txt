@@ -1,15 +1,12 @@
-![](reference/figures/shrinkr_hex_badge.png)
+# shrinkr [![shrinkr logo](reference/figures/shrinkr_hex_badge.png)](https://gsk-biostatistics.github.io/shrinkr/)
 
-[![R-CMD-check](https://github.com/gsk-tech/shrinkr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/gsk-tech/shrinkr/actions/workflows/R-CMD-check.yaml)
-[![Lifecycle:
-experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+## Modular Bayesian Hierarchical Shrinkage Models
 
-**Modular Bayesian Hierarchical Shrinkage Models**
-
-`shrinkr` provides a flexible framework for *two-stage* Bayesian
-hierarchical modeling (BHM).  
-It lets you perform shrinkage of subgroup-specific posterior means from
-*any* Bayesian model in a modular way.
+`shrinkr` provides a flexible framework for two-stage Bayesian
+hierarchical modeling (BHM). By separating model fitting from
+hierarchical shrinkage, it allows subgroup-specific estimates from
+virtually any Bayesian model to be incorporated into a common borrowing
+framework.
 
 ------------------------------------------------------------------------
 
@@ -309,7 +306,7 @@ summarize_mu_tau(fit)
 
 - **Stage 1:** Can be computationally expensive (full Bayesian model
   fitting)
-- **Stage 2:** Fast (typically \< 1 minute for 4-5 groups with 2000
+- **Stage 2:** Fast (typically \< 1 second for 4-5 groups with 2000
   iterations)
 - **Mixture fitting:** Time scales with number of groups and posterior
   samples
