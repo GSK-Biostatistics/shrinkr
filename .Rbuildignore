@@ -15,6 +15,7 @@
 ^src/.*\.dll$
 ^src/Makevars\.win$
 ^README\.Rmd$
+^LICENSE\.md$
 ^NEWS\.Rmd$
 ^\.github$
 ^docs$
