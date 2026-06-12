@@ -29,11 +29,11 @@
 
 ## Key Idea
 
-1. **Stage 1:** Fit any Bayesian model (e.g., in Stan, NIMBLE, JAGS) *without shrinkage* using **flat/uninformative priors** on the parameters of interest.  
+1. **Stage 1:** Fit any Bayesian model (e.g., in Stan, NIMBLE, JAGS) without shrinkage using flat/uninformative priors on the parameters of interest.  
    Extract posterior draws of subgroup-specific parameters ($\theta_g$, the treatment effect or estimand of interest for each subgroup $g = 1, \ldots G$).
 
-2. **Stage 2:** Approximate those subgroup posteriors with a **mixture of multivariate normals**,  
-   and then fit a **hierarchical model** across groups to borrow strength ("shrink").
+2. **Stage 2:** Approximate those subgroup posteriors with a mixture of multivariate normals,  
+   and then fit a hierarchical model across groups to borrow strength ("shrink").
 
 This modular approach lets you separate shrinkage from the first model—ideal for simulation pipelines, sensitivity checks, and Bayesian data borrowing.
 
