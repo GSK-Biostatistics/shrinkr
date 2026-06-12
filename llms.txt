@@ -91,9 +91,6 @@ rstan:
 (`xcode-select --install`)  
 - **Linux:** Install `r-base-dev` package
 
-**Access Note:** This package is currently in internal development at
-GSK.
-
 ------------------------------------------------------------------------
 
 ## Quick Start
