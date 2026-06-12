@@ -70,8 +70,6 @@ install.packages(c("rstan", "distributional", "mclust", "posterior"))
 - **Mac:** Ensure Xcode command line tools are installed (`xcode-select --install`)   
 - **Linux:** Install `r-base-dev` package   
 
-**Access Note:** This package is currently in internal development at GSK.
-
 ---
 
 ## Quick Start
