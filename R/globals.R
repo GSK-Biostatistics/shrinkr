@@ -1,0 +1,20 @@
+utils::globalVariables(c(
+  "x",
+  "comp_density",
+  "component",
+  "variable",
+  "theoretical",
+  "empirical",
+  "value",
+  "theta",
+  "group",
+  "x_pos",
+  "estimate_type",
+  "lower",
+  "upper",
+  "xend",
+  "y",
+  "yend",
+  "abs_diff",
+  "pair"
+))

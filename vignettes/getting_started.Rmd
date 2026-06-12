@@ -1,0 +1,456 @@
+---
+title: "Getting Started with shrinkr"
+author: "Jacob M. Maronge"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with shrinkr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 6,
+  warning = FALSE,
+  message = FALSE
+)
+
+# Load pre-computed Stage 1 results (Stan samples, mixture, prior predictive)
+# The expensive Stan stage 1 fit is pre-computed; shrink() runs live below
+r <- get("getting_started_results", envir = asNamespace("shrinkr"))
+```
+
+## What is shrinkr?
+
+**shrinkr** lets you apply Bayesian hierarchical shrinkage to group-specific estimates in a modular, two-stage workflow:
+
+1. **Stage 1**: Fit your model separately for each group (region, hospital, study, etc.) using **flat priors**
+2. **Stage 2**: Borrow strength across groups through hierarchical shrinkage
+
+**Why use shrinkr?**
+
+- You've already fit separate models and want to pool information afterward
+- You want modularity to separate model fitting from shrinkage estimation
+- You want to simplify shrinkage estimation in complex models
+- You want to try different shrinkage priors without refitting expensive Stage 1 models
+- You need transparency in how much your results depend on the hierarchical prior
+- You're doing meta-analysis or federated learning with summary statistics
+
+```{r packages, message=FALSE}
+library(shrinkr)
+library(distributional)
+library(posterior)
+library(tidyverse)
+```
+
+## A Complete Example: Regional Clinical Trial
+
+Imagine a clinical trial run independently in 5 regions. Each region estimated a treatment effect, and now you want to apply shrinkage analysis.
+
+### Stage 1: Fit Independent Models with Stan
+
+First, let's create synthetic trial data:
+
+```{r generate_data, eval=FALSE}
+library(rstan)
+set.seed(1104)
+
+true_mu <- 0.5
+true_tau <- 0.3
+true_effects <- c(0.45, 0.72, 0.38, 0.55, 0.61)
+
+regions <- c("North", "South", "East", "West", "Central")
+n_per_region <- c(100, 80, 120, 90, 70)
+
+trial_data <- lapply(seq_along(regions), function(i) {
+  n <- n_per_region[i]
+  data.frame(
+    region = regions[i],
+    treatment = rep(c(0, 1), each = n/2),
+    outcome = c(
+      rnorm(n/2, mean = 0, sd = 1),
+      rnorm(n/2, mean = true_effects[i], sd = 1)
+    )
+  )
+}) %>% bind_rows()
+```
+
+```{r show_data_hidden, include=FALSE}
+trial_data <- r$trial_data
+```
+
+```{r show_data, eval=FALSE}
+head(trial_data)
+table(trial_data$region, trial_data$treatment)
+```
+
+```{r show_data_run, echo=FALSE}
+head(r$trial_data)
+table(r$trial_data$region, r$trial_data$treatment)
+```
+
+Now we write a Stan model with treatment-by-region interaction:
+
+```{r stan_model, eval=FALSE}
+stan_code <- "
+data {
+  int<lower=0> N;
+  int<lower=1> G;
+  vector[N] y;
+  vector[N] treatment;
+  array[N] int<lower=1,upper=G> region;
+}
+parameters {
+  vector[G] beta_region;
+  real<lower=0> sigma;
+}
+model {
+  // IMPORTANT: Flat prior on beta_region - critical for the two-stage approach!
+  sigma ~ normal(0, 2);
+  for (n in 1:N) {
+    y[n] ~ normal(treatment[n] * beta_region[region[n]], sigma);
+  }
+}
+"
+```
+
+```{r fit_stan, eval=FALSE}
+regions <- c("North", "South", "East", "West", "Central")
+region_indices <- as.integer(factor(trial_data$region, levels = regions))
+
+fit_stan <- stan(
+  model_code = stan_code,
+  data = list(
+    N = nrow(trial_data), G = length(regions),
+    y = trial_data$outcome, treatment = trial_data$treatment,
+    region = region_indices
+  ),
+  chains = 4, iter = 2000, warmup = 1000, refresh = 0, seed = 123
+)
+
+beta_draws <- rstan::extract(fit_stan, pars = "beta_region")$beta_region
+samples_list <- lapply(seq_along(regions), function(i) beta_draws[, i])
+names(samples_list) <- regions
+samples <- lapply(samples_list, function(x) matrix(x, ncol = 1))
+```
+
+Let's examine what we got from Stage 1:
+
+```{r examine_stage1_hidden, include=FALSE}
+samples <- r$samples
+regions <- names(samples)
+```
+
+```{r examine_stage1, eval=FALSE}
+stage1_summary <- data.frame(
+  region = regions,
+  mean   = sapply(samples, mean),
+  sd     = sapply(samples, sd),
+  lower  = sapply(samples, function(x) quantile(x, 0.025)),
+  upper  = sapply(samples, function(x) quantile(x, 0.975))
+)
+
+print(stage1_summary)
+```
+
+```{r examine_stage1_run, echo=FALSE}
+samples <- r$samples
+regions <- names(samples)
+
+stage1_summary <- data.frame(
+  region = regions,
+  mean   = sapply(samples, mean),
+  sd     = sapply(samples, sd),
+  lower  = sapply(samples, function(x) quantile(x, 0.025)),
+  upper  = sapply(samples, function(x) quantile(x, 0.975))
+)
+
+print(stage1_summary)
+```
+
+**Stage 1 visualization:**
+
+```{r plot_stage1, fig.width=10, fig.height=5}
+ggplot(stage1_summary, aes(x = region, y = mean)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_pointrange(aes(ymin = lower, ymax = upper),
+                  size = 0.8, color = "steelblue") +
+  labs(
+    title    = "Stage 1: Independent Regional Estimates",
+    subtitle = "Each region analyzed separately with flat priors",
+    x = "Region", y = "Treatment Effect",
+    caption = "Points show posterior means; bars show 95% credible intervals"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+**Notice:** Central has the widest interval (n=70) and East the narrowest (n=120). Estimates vary considerably — hierarchical shrinkage will borrow strength across regions.
+
+### Stage 2: Apply Hierarchical Shrinkage
+
+#### Step 1: Fit Mixture Approximation
+
+```{r fit_mixture, eval=FALSE}
+mix <- fit_mixture(samples = samples, K_max = 3, verbose = TRUE)
+```
+
+```{r show_mixture_hidden, include=FALSE}
+mix <- r$mix
+```
+
+```{r show_mixture, eval=FALSE}
+print(mix)
+```
+
+```{r show_mixture_run, echo=FALSE}
+print(r$mix)
+```
+
+**Check the approximation quality:**
+
+```{r check_mixture, fig.width=12, fig.height=8}
+# Blue line should overlay the histogram well
+plot(mix, draws = samples, type = "density")
+
+# Points should fall near the diagonal
+plot(mix, draws = samples, type = "qq")
+```
+
+#### Step 2: Specify Hierarchical Priors
+
+```{r specify_priors}
+hierarchical_priors <- list(
+  mu  = dist_normal(0, 1),
+  tau = dist_truncated(dist_student_t(3, 0, 0.5), lower = 0)
+)
+```
+
+**Check prior implications before fitting:**
+
+```{r prior_predictive, eval=FALSE}
+prior_pred <- sample_prior_predictive(
+  hierarchical_priors = hierarchical_priors,
+  n_groups = 5,
+  n_draws  = 1000
+)
+```
+
+```{r show_prior_pred_hidden, include=FALSE}
+prior_pred <- r$prior_pred
+```
+
+```{r show_prior_pred, eval=FALSE}
+cat("Prior on tau (between-region SD):\n")
+cat("  Median:", round(median(prior_pred$tau), 2), "\n")
+cat("  95% interval:", round(quantile(prior_pred$tau, c(0.025, 0.975)), 2), "\n\n")
+
+cat("Implied variation in regional effects:\n")
+cat("  Typical range:", round(median(prior_pred$implied_range), 2), "\n")
+cat("  95% interval:", round(quantile(prior_pred$implied_range, c(0.025, 0.975)), 2), "\n")
+```
+
+```{r show_prior_pred_run, echo=FALSE}
+cat("Prior on tau (between-region SD):\n")
+cat("  Median:", round(median(r$prior_pred$tau), 2), "\n")
+cat("  95% interval:", round(quantile(r$prior_pred$tau, c(0.025, 0.975)), 2), "\n\n")
+
+cat("Implied variation in regional effects:\n")
+cat("  Typical range:", round(median(r$prior_pred$implied_range), 2), "\n")
+cat("  95% interval:", round(quantile(r$prior_pred$implied_range, c(0.025, 0.975)), 2), "\n")
+```
+
+```{r plot_prior, fig.width=10, fig.height=8}
+plot(prior_pred)
+```
+
+**Check what the prior implies about pairwise subgroup differences:**
+
+The `implied_range` above measures max(theta) - min(theta) across all groups for each draw. For a more detailed view, `prior_pairwise_differences()` computes the distribution of |theta_i - theta_j| for every pair of groups. This is particularly useful for calibrating whether your prior places reasonable probability on clinically meaningful differences.
+
+```{r pairwise_prior, fig.width=8, fig.height=5}
+pw <- prior_pairwise_differences(prior_pred)
+print(pw)
+```
+
+```{r plot_pairwise, fig.width=8, fig.height=5}
+# Pooled histogram of |theta_i - theta_j| across all pairs
+plot(pw)
+```
+
+The `prob_gt_0.5` and `prob_gt_1` columns in the summary show the prior probability of observing pairwise differences exceeding those thresholds — useful for assessing whether your prior is consistent with your clinical expectations about subgroup heterogeneity.
+
+#### Step 3: Fit the Hierarchical Model
+
+```{r fit_shrink}
+fit <- shrink(
+  mixture             = mix,
+  hierarchical_priors = hierarchical_priors,
+  chains  = 4,
+  iter    = 2000,
+  warmup  = 1000,
+  seed    = 456,
+  refresh = 0
+)
+
+print(fit)
+```
+
+#### Step 4: Examine Results
+
+```{r extract_hyperparams}
+mu_tau <- extract_mu_tau(fit)
+
+cat("Overall treatment effect (mu):\n")
+cat("  Mean:", round(mean(mu_tau$mu), 3), "\n")
+cat("  95% CI:", round(quantile(mu_tau$mu, c(0.025, 0.975)), 3), "\n\n")
+
+cat("Between-region heterogeneity (tau):\n")
+cat("  Mean:", round(mean(mu_tau$tau), 3), "\n")
+cat("  95% CI:", round(quantile(mu_tau$tau, c(0.025, 0.975)), 3), "\n")
+```
+
+```{r summarize_theta}
+theta_summary <- summarize_theta(fit)
+print(theta_summary)
+```
+
+#### Step 5: Visualize Shrinkage
+
+```{r plot_shrink, fig.width=10, fig.height=6}
+plot(fit)
+```
+
+**Key observations:**
+
+- Central (most uncertain) shrinks most toward the mean
+- East (most precise) shrinks least
+- This is **adaptive shrinkage**: uncertain estimates borrow more
+
+```{r plot_diagnostics, fig.width=12, fig.height=8}
+plot(fit, type = "diagnostics")
+```
+
+## Alternative Input: Using Summary Statistics Only
+
+If you only have published means and standard errors (no full posteriors), you can use the MLE approach:
+
+```{r mle_approach}
+mle_estimates <- sapply(samples, mean)
+mle_variances <- sapply(samples, var)
+
+fit_mle <- shrink(
+  mle                 = mle_estimates,
+  var_matrix          = mle_variances,
+  hierarchical_priors = hierarchical_priors,
+  chains  = 4,
+  iter    = 2000,
+  warmup  = 1000,
+  seed    = 456,
+  refresh = 0
+)
+```
+
+```{r show_mle}
+mu_tau_mle <- extract_mu_tau(fit_mle)
+
+cat("Mixture approach:\n")
+cat("  mu =",  round(mean(mu_tau$mu), 3), "\n")
+cat("  tau =", round(mean(mu_tau$tau), 3), "\n\n")
+
+cat("MLE approach:\n")
+cat("  mu =",  round(mean(mu_tau_mle$mu), 3), "\n")
+cat("  tau =", round(mean(mu_tau_mle$tau), 3), "\n")
+```
+
+| Method | Use When | Pros | Cons |
+|--------|----------|------|------|
+| **Mixture** | You have full posteriors | Captures non-normality; More accurate | Requires posterior samples |
+| **MLE** | Only means + SEs available | Simpler; Works with published data | Assumes normality |
+
+## Complete Stan → shrinkr Workflow Summary
+
+```{r workflow_summary, eval=FALSE}
+# 1. Write Stan model with FLAT PRIORS on parameters of interest
+stan_code <- "
+data {
+  int<lower=0> N;
+  int<lower=1> G;
+  vector[N] y;
+  vector[N] treatment;
+  array[N] int<lower=1,upper=G> group;
+}
+parameters {
+  vector[G] theta;  // Group-specific effects - NO PRIOR SPECIFIED
+  real<lower=0> sigma;
+}
+model {
+  sigma ~ normal(0, 2);
+  for (n in 1:N) {
+    y[n] ~ normal(treatment[n] * theta[group[n]], sigma);
+  }
+}
+"
+
+# 2. Fit model once to get all group effects, extract posteriors
+group_indices <- as.integer(factor(data$group, levels = groups))
+fit_stan <- stan(
+  model_code = stan_code,
+  data = list(N = nrow(data), G = length(groups),
+              y = data$y, treatment = data$treatment,
+              group = group_indices),
+  chains = 4, iter = 2000, warmup = 1000, refresh = 0
+)
+
+theta_draws <- extract(fit_stan)$theta
+samples <- lapply(seq_along(groups), function(i) matrix(theta_draws[, i], ncol = 1))
+names(samples) <- groups
+
+# 3. Fit mixture approximation and check quality
+mix <- fit_mixture(samples, K_max = 3)
+plot(mix, draws = samples)
+
+# 4. Specify and check hierarchical priors
+priors <- list(
+  mu  = dist_normal(0, 5),
+  tau = dist_truncated(dist_student_t(3, 0, 1), lower = 0)
+)
+plot(sample_prior_predictive(priors, n_groups = length(groups)))
+
+# 5. Fit, extract, and visualize
+fit <- shrink(mixture = mix, hierarchical_priors = priors)
+plot(fit)
+summarize_theta(fit)
+extract_mu_tau(fit)
+```
+
+## Key Concepts Checklist
+
+- **Stage 1 uses flat priors** - This is critical! Don't specify a prior on the parameter you'll shrink
+- **Mixture approximation** - Allows shrinkr to work with any posterior shape; check quality with `plot()`
+- **Hierarchical priors** - Applied only in Stage 2; use `sample_prior_predictive()` to understand implications
+- **Adaptive shrinkage** - Uncertain estimates borrow more; precise estimates borrow less
+- **Diagnostics matter** - Always check mixture fit, prior-data agreement, and MCMC convergence
+
+## Common Pitfalls to Avoid
+
+- **Using informative priors in Stage 1** - This creates "double priors" and breaks the equivalence
+- **Skipping mixture quality checks** - Poor approximation → biased shrinkage, run: `plot(mix, draws = samples)`
+- **Ignoring prior implications** - Your prior might be too strong or weak, run: `sample_prior_predictive()` and `plot()`
+- **Not checking convergence** - MCMC diagnostics apply to Stage 2 too, check: `fit$diagnostics`, Rhat, ESS
+
+## Next Steps
+
+1. **Advanced integration**: See `vignette("tidy_bayesian_workflow")` for working with tidyverse tools
+2. **Real applications**: See `vignette("brms_integration")` for survival analysis and brms integration
+3. **Sensitivity analysis**: Learn to explore different prior specifications efficiently (this is done in the brms vignette)
+4. **Federated learning**: See `vignette("federated_learning")` for distributed data analysis
+
+## Session Info
+
+```{r sessioninfo}
+sessionInfo()
+```

@@ -1,0 +1,851 @@
+---
+title: "Federated Learning with shrinkr"
+author: "Jacob M. Maronge"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Federated Learning with shrinkr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 6,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+## Introduction
+
+**Federated learning** enables collaborative analysis across multiple sites without centralizing data. This is critical when:
+
+- Data cannot leave institutional firewalls (HIPAA, GDPR)
+- Each site has proprietary or sensitive data
+- Centralizing data is logistically infeasible
+- You want to preserve patient privacy
+
+**shrinkr's two-stage architecture naturally enables federated learning:**
+
+```
+Site 1: Stage 1 model → Posterior samples (or summaries)
+Site 2: Stage 1 model → Posterior samples (or summaries)  } → Central
+Site 3: Stage 1 model → Posterior samples (or summaries)  }   Coordinator
+   ...                                                     }   applies
+Site K: Stage 1 model → Posterior samples (or summaries)  }   Stage 2 shrinkage
+```
+
+**Data never leaves the sites**, only statistical summaries are shared.
+
+> **Important: CLT Assumption for Summary Statistics**
+>
+> If sites share only summary statistics (means + SEs) rather than full posteriors, the analysis relies on the **Bayesian Central Limit Theorem**. This assumes posteriors are approximately normal, which requires:
+>
+> - Adequate sample sizes at each site
+> - Parameters in the interior (not near boundaries)
+> - Well-behaved likelihood functions
+> - Regular posterior geometry
+>
+> **Always verify** posterior normality before using summary statistics! When in doubt, share full posteriors or send mixture approximations (e.g. send `fit_mixture()` output).
+
+```{r packages}
+library(shrinkr)
+library(distributional)
+library(posterior)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+## Use Case: Multi-Hospital Mortality Prediction
+
+We'll analyze a federated clinical prediction model across 6 hospitals. Each hospital:   
+- Has developed a logistic regression model for 30-day mortality   
+- Cannot share patient-level data (HIPAA compliance)   
+- Wants to improve predictions by borrowing strength across sites   
+
+**Goal**: Combine site-specific models while respecting data governance constraints.
+
+## Scenario Setup
+
+### The Federated Network
+
+```{r network_setup}
+hospitals <- data.frame(
+  site_id = 1:6,
+  name = c("Metro General", "County Regional", "University Medical", 
+           "Community Hospital", "Veterans Affairs", "Children's Specialty"),
+  location = c("Urban", "Suburban", "Academic", "Rural", "Urban", "Urban"),
+  n_patients = c(1500, 800, 2200, 350, 1100, 900),
+  baseline_risk = c(0.15, 0.12, 0.18, 0.10, 0.20, 0.14)
+)
+
+print(hospitals)
+```
+
+### The Clinical Model
+
+Each site fits:
+```
+logit(mortality) = β₀ + β₁(age) + β₂(severity_score) + β₃(comorbidities)
+```
+
+**Parameter of interest**: `β₁` (age effect on mortality)   
+- We want site-specific estimates   
+- But want to borrow strength across the network   
+
+## Federated Workflow
+
+### Step 1: Each Site Fits Independently
+
+In practice, this happens behind each site's firewall. We simulate:
+
+```{r site_models}
+set.seed(1104)
+
+# True network-level parameters (unknown in practice)
+true_mu_age <- 0.05    # log-OR per year
+true_tau_age <- 0.015  # between-site heterogeneity
+true_site_effects <- rnorm(6, true_mu_age, true_tau_age)
+
+# Simulate Stage 1: Each site fits their model independently
+# In reality: glm(), stan_glm(), or other Bayesian logistic regression
+
+site_posteriors <- list()
+site_sample_sizes <- hospitals$n_patients
+
+for(i in 1:6) {
+  # Posterior for age coefficient (β₁)
+  # SE inversely proportional to sqrt(sample size)
+  se_i <- 0.02 * sqrt(800 / site_sample_sizes[i])
+  
+  site_posteriors[[hospitals$name[i]]] <- matrix(
+    rnorm(4000, true_site_effects[i], se_i),
+    ncol = 1
+  )
+}
+
+# Each site computes summaries
+site_summaries <- data.frame(
+  site = hospitals$name,
+  n_patients = site_sample_sizes,
+  beta_age_mean = sapply(site_posteriors, mean),
+  beta_age_se = sapply(site_posteriors, sd)
+) %>%
+  mutate(
+    ci_lower = beta_age_mean - 1.96 * beta_age_se,
+    ci_upper = beta_age_mean + 1.96 * beta_age_se
+  )
+
+print(site_summaries)
+```
+
+**Key observations:**   
+- Smaller sites (e.g., Community Hospital) have wider intervals   
+- Point estimates vary across sites (0.039 to 0.063)   
+- Rural site with fewer patients is least precise   
+
+### Step 2: Sites Share Summaries with Coordinator
+
+Two federated learning paths are possible:
+
+#### Path A: Share Full Posteriors (if permitted)
+```{r share_posteriors}
+# Sites share posterior samples (4000 draws each)
+# This is more informative but requires more data transfer
+
+cat("Data shared per site:\n")
+cat("  Posterior samples: 4000 draws\n")
+cat("  Total data transfer:", 6 * 4000 * 8, "bytes (", 
+    round(6 * 4000 * 8 / 1024, 1), "KB)\n")
+```
+
+#### Path B: Share Only Summary Statistics (requires assumptions)
+```{r share_summaries}
+# Sites share only mean and SE
+# Minimal data transfer, maximum privacy
+# BUT: Only valid if posteriors are approximately normal!
+
+summary_only <- site_summaries %>%
+  select(site, beta_age_mean, beta_age_se)
+
+cat("Data shared per site:\n")
+cat("  Point estimate: 1 number\n")
+cat("  Standard error: 1 number\n")
+cat("  Total data transfer:", 6 * 2 * 8, "bytes (", 
+    round(6 * 2 * 8 / 1024, 3), "KB)\n")
+
+print(summary_only)
+```
+
+**Privacy consideration**: Path B shares 190× less data than Path A!   
+
+**Critical assumption**: Path B relies on the **Bayesian Central Limit Theorem**:   
+- Large sample sizes at each site   
+- Parameters not near boundaries   
+- Well-behaved likelihoods   
+- Regular posterior geometry   
+
+## Central Coordinator: Stage 2 Shrinkage
+
+The coordinator (e.g., a coordinating center or trusted third party) now applies hierarchical shrinkage.
+
+### Path A: Using Full Posteriors
+
+```{r path_a_mixture}
+# Fit mixture approximation
+mix <- fit_mixture(
+  samples = site_posteriors,
+  K_max = 2,  # Age effects should be fairly normal
+  verbose = TRUE
+)
+
+# Check quality
+plot(mix, draws = site_posteriors, type = "density")
+```
+
+#### Specify Network-Level Priors
+
+```{r network_priors}
+# Based on clinical knowledge:
+# - Age effect should be positive but moderate (β₁ ≈ 0.02-0.08)
+# - Some heterogeneity expected across hospital types
+
+hierarchical_priors <- list(
+  mu = dist_normal(0.05, 0.025),  # Centered on 5% increase per year
+  tau = dist_truncated(dist_student_t(3, 0, 0.01), lower = 0)  # Modest heterogeneity
+)
+
+# Visualize prior implications
+prior_pred <- sample_prior_predictive(
+  hierarchical_priors = hierarchical_priors,
+  n_groups = 6,
+  n_draws = 1000
+)
+
+plot(prior_pred, type = "both")
+```
+
+#### Fit Hierarchical Model
+
+```{r fit_path_a, results='hide'}
+fit_full_post <- shrink(
+  mixture = mix,
+  hierarchical_priors = hierarchical_priors,
+  chains = 4,
+  iter = 2000,
+  warmup = 1000,
+  seed = 123
+)
+```
+
+```{r path_a_results}
+print(fit_full_post)
+
+# Network-level estimates
+mu_tau_full <- extract_mu_tau(fit_full_post)
+cat("\nNetwork-level age effect (μ):\n")
+cat("  Posterior mean:", round(mean(mu_tau_full$mu), 4), "\n")
+cat("  95% CI: [", round(quantile(mu_tau_full$mu, 0.025), 4), ",",
+    round(quantile(mu_tau_full$mu, 0.975), 4), "]\n")
+
+cat("\nBetween-site heterogeneity (τ):\n")
+cat("  Posterior mean:", round(mean(mu_tau_full$tau), 4), "\n")
+cat("  95% CI: [", round(quantile(mu_tau_full$tau, 0.025), 4), ",",
+    round(quantile(mu_tau_full$tau, 0.975), 4), "]\n")
+```
+
+### Path B: Using Only Summary Statistics
+
+**Before using summary statistics**, we must verify posteriors are approximately normal!
+
+#### Step 1: Check Normality Assumption
+
+```{r check_normality, fig.width=10, fig.height=8}
+# Visual checks for approximate normality
+par(mfrow = c(3, 2))
+for(i in 1:6) {
+  site_name <- names(site_posteriors)[i]
+  samples_i <- as.vector(site_posteriors[[i]])
+  
+  # QQ plot against normal
+  qqnorm(samples_i, main = paste("QQ Plot:", site_name))
+  qqline(samples_i, col = "red", lwd = 2)
+}
+par(mfrow = c(1, 1))
+```
+
+```{r normality_tests}
+# Quantitative checks
+normality_checks <- data.frame(
+  site = names(site_posteriors),
+  skewness = sapply(site_posteriors, function(x) {
+    n <- length(x)
+    m3 <- mean((x - mean(x))^3)
+    s3 <- sd(x)^3
+    m3 / s3
+  }),
+  kurtosis = sapply(site_posteriors, function(x) {
+    n <- length(x)
+    m4 <- mean((x - mean(x))^4)
+    s4 <- sd(x)^4
+    m4 / s4 - 3  # Excess kurtosis
+  })
+)
+
+print(normality_checks)
+
+cat("\nNormality assessment:\n")
+cat("  Skewness close to 0? (|skew| < 0.5 is good)\n")
+cat("  Kurtosis close to 0? (|kurt| < 1.0 is good)\n")
+cat("  All sites pass:", 
+    all(abs(normality_checks$skewness) < 0.5 & abs(normality_checks$kurtosis) < 1.0),
+    "\n")
+```
+
+**Decision rule**:    
+- If posteriors look approximately normal → Path B is likely valid   
+- If posteriors are skewed/heavy-tailed → Use Path A (mixture)   
+- If unsure → Use Path A (safer choice)   
+
+#### When CLT Fails: A Counter-Example
+
+To illustrate why normality matters, consider a scenario where we're estimating a **variance parameter**:
+
+```{r clt_failure_example}
+# Simulated: posterior for a variance parameter (boundary at 0)
+set.seed(999)
+variance_posterior <- matrix(rchisq(4000, df = 5) / 5, ncol = 1)
+
+# Compute summary statistics
+var_mean <- mean(variance_posterior)
+var_se <- sd(variance_posterior)
+
+# Check normality
+par(mfrow = c(1, 2))
+hist(variance_posterior, breaks = 30, main = "Variance Posterior",
+     xlab = "σ²", col = "lightblue")
+qqnorm(variance_posterior, main = "QQ Plot")
+qqline(variance_posterior, col = "red", lwd = 2)
+par(mfrow = c(1, 1))
+
+# Skewness
+skew <- mean((variance_posterior - var_mean)^3) / var_se^3
+cat("Skewness:", round(skew, 2), "(should be ~0 for normal)\n")
+cat("This posterior is RIGHT-SKEWED - CLT approximation would be poor!\n")
+```
+
+**For this scenario:**   
+- Path B (summaries) would give biased results   
+- Path A (mixture) handles the skewness correctly   
+
+#### Step 2: Fit Using CLT Approximation
+
+```{r path_b_mle}
+# Extract means and variances
+mle_estimates <- site_summaries$beta_age_mean
+names(mle_estimates) <- site_summaries$site
+
+mle_variances <- site_summaries$beta_age_se^2
+names(mle_variances) <- site_summaries$site
+
+# Fit using MLE path (CLT approximation)
+fit_summaries <- shrink(
+  mle = mle_estimates,
+  var_matrix = mle_variances,
+  hierarchical_priors = hierarchical_priors,
+  chains = 4,
+  iter = 2000,
+  warmup = 1000,
+  seed = 123,
+  verbose = FALSE,
+  refresh = 0
+)
+
+print(fit_summaries)
+```
+
+### Compare Paths
+
+```{r compare_paths}
+mu_tau_summaries <- extract_mu_tau(fit_summaries)
+
+comparison <- data.frame(
+  parameter = c("mu", "tau"),
+  full_posteriors = c(
+    mean(mu_tau_full$mu),
+    mean(mu_tau_full$tau)
+  ),
+  summaries_only = c(
+    mean(mu_tau_summaries$mu),
+    mean(mu_tau_summaries$tau)
+  )
+) %>%
+  mutate(difference = abs(full_posteriors - summaries_only))
+
+print(comparison)
+
+cat("\nMaximum difference:", round(max(comparison$difference), 5), "\n")
+```
+
+**Conclusion**: Both paths give nearly identical results **because** posteriors are approximately normal in this case. This will not always be true!
+
+**When each path is appropriate:**
+
+| Situation | Recommended Path | Reason |
+|-----------|------------------|---------|
+| Posteriors are normal (verified) | Path B acceptable | CLT holds; minimal sharing |
+| Posteriors are skewed/multimodal | Path A required | CLT fails; mixture needed |
+| Small sample sizes per site | Path A safer | CLT may not hold yet |
+| Boundary constraints (e.g., σ > 0) | Path A required | CLT assumes interior parameters |
+| Unknown posterior shape | Path A safer | Conservative choice |
+| Maximum privacy needed + normal posteriors | Path B acceptable | But verify normality! |
+
+## Results: Improved Site-Specific Estimates
+
+### Visualize Shrinkage Effect
+
+```{r viz_shrinkage, fig.width=10, fig.height=6}
+# Using Path A results (nearly identical for Path B)
+plot(fit_full_post)
+```
+
+**Key insights:**   
+- **Community Hospital** (smallest site) shrinks most toward network mean   
+- **University Medical** (largest site) keeps closest to original estimate  
+- **Metro General** and **VA Hospital** pulled slightly toward center   
+- Adaptive borrowing based on precision!   
+
+### Quantify Uncertainty Reduction
+
+```{r uncertainty_reduction}
+# Get Stage 2 estimates
+theta_post <- summarize_theta(fit_full_post)
+
+# Compare Stage 1 vs Stage 2 uncertainty
+uncertainty_comparison <- data.frame(
+  site = site_summaries$site,
+  n_patients = site_summaries$n_patients,
+  stage1_se = site_summaries$beta_age_se,
+  stage2_se = theta_post$sd
+) %>%
+  mutate(
+    reduction_pct = 100 * (stage1_se - stage2_se) / stage1_se,
+    stage1_ci_width = 2 * 1.96 * stage1_se,
+    stage2_ci_width = 2 * 1.96 * stage2_se,
+    ci_width_reduction = 100 * (stage1_ci_width - stage2_ci_width) / stage1_ci_width
+  )
+
+print(uncertainty_comparison)
+```
+
+**Largest improvements** in smaller sites:   
+- Community Hospital: 26% reduction in SE   
+- Children's Specialty: 18% reduction in SE   
+- County Regional: 15% reduction in SE   
+
+### Visualize Uncertainty Reduction
+
+```{r plot_uncertainty, fig.width=10, fig.height=6}
+# Prepare data for plotting
+uncertainty_long <- uncertainty_comparison %>%
+  select(site, n_patients, stage1_se, stage2_se) %>%
+  pivot_longer(
+    cols = c(stage1_se, stage2_se),
+    names_to = "stage",
+    values_to = "standard_error"
+  ) %>%
+  mutate(
+    stage = factor(stage, 
+                   levels = c("stage1_se", "stage2_se"),
+                   labels = c("Stage 1 (Independent)", "Stage 2 (Shrunken)"))
+  )
+
+ggplot(uncertainty_long, aes(x = reorder(site, -n_patients), y = standard_error, 
+                              fill = stage)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = sprintf("%.4f", standard_error)),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5, size = 3) +
+  scale_fill_manual(values = c("Stage 1 (Independent)" = "steelblue",
+                                "Stage 2 (Shrunken)" = "coral")) +
+  labs(
+    title = "Uncertainty Reduction Through Federated Learning",
+    subtitle = "Sites ordered by sample size (largest to smallest)",
+    x = "Hospital Site",
+    y = "Standard Error (β₁)",
+    fill = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+```
+
+## Clinical Impact: Network-Calibrated Predictions
+
+### Stage 1: Independent Site Predictions
+
+```{r stage1_predictions}
+# Example: 70-year-old patient
+age <- 70
+baseline_age <- 60  # Reference age
+
+# Stage 1 predictions (independent)
+stage1_log_or <- site_summaries$beta_age_mean * (age - baseline_age)
+stage1_or <- exp(stage1_log_or)
+
+stage1_preds <- data.frame(
+  site = site_summaries$site,
+  log_or = stage1_log_or,
+  odds_ratio = stage1_or,
+  stage = "Independent"
+)
+```
+
+### Stage 2: Network-Calibrated Predictions
+
+```{r stage2_predictions}
+# Stage 2 predictions (network-calibrated)
+stage2_log_or <- theta_post$mean * (age - baseline_age)
+stage2_or <- exp(stage2_log_or)
+
+stage2_preds <- data.frame(
+  site = theta_post$group,
+  log_or = stage2_log_or,
+  odds_ratio = stage2_or,
+  stage = "Network-Calibrated"
+)
+
+# Combine
+all_preds <- rbind(stage1_preds, stage2_preds)
+```
+
+### Visualize Prediction Changes
+
+```{r plot_predictions, fig.width=10, fig.height=6}
+ggplot(all_preds, aes(x = site, y = odds_ratio, fill = stage)) +
+  geom_col(position = "dodge") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray30") +
+  geom_text(aes(label = sprintf("%.2f", odds_ratio)),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5, size = 3) +
+  scale_fill_manual(values = c("Independent" = "steelblue",
+                                "Network-Calibrated" = "coral")) +
+  labs(
+    title = "Predicted Odds Ratio for 70 vs 60 Year-Old Patient",
+    subtitle = "Network calibration stabilizes predictions across sites",
+    x = "Hospital Site",
+    y = "Odds Ratio",
+    fill = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+```
+
+**Clinical interpretation**:   
+- Independent estimates vary widely (1.42 to 1.81)   
+- Network-calibrated estimates are more consistent (1.52 to 1.60)   
+- Small sites benefit most from network information   
+- Preserves meaningful site-specific variation   
+
+## Privacy-Preserving Benefits
+
+### What Gets Shared
+
+```{r privacy_summary}
+privacy_comparison <- data.frame(
+  approach = c("Centralized Data", "Path A: Full Posteriors", "Path B: Summaries"),
+  patient_data_shared = c("Yes - All records", "No", "No"),
+  data_per_site = c("~50-200 MB", "~200 KB", "~16 bytes"),
+  privacy_risk = c("High", "Low", "Minimal"),
+  validity = c("N/A", "Always valid", "Only if CLT holds"),
+  when_to_use = c("Not for federated", "Default choice", "When posteriors normal")
+)
+
+knitr::kable(privacy_comparison, align = "lccccl")
+```
+
+**Key insight**: Path A (full posteriors at ~200 KB) is still 1000× smaller than centralized data (~200 MB) while being valid in all scenarios. Path B saves another 12,500× but requires normality.
+
+### Compliance Benefits
+
+**Certain data privacy policies satisfied**:   
+- No patient-level data leaves sites     
+- Only aggregate statistical summaries shared   
+- De-identified parameter estimates   
+
+## Advanced Federated Scenarios
+
+### Scenario 1: Heterogeneous Models
+
+Sites use different model specifications:
+
+```{r heterogeneous_models, eval=FALSE}
+# Site 1: Linear model
+# Site 2: GLM with splines
+# Site 3: Bayesian hierarchical model
+
+# As long as they all estimate the same parameter (e.g., treatment effect),
+# shrinkr can combine them!
+
+samples_heterogeneous <- list(
+  site1 = samples_from_lm,
+  site2 = samples_from_glm,  # Extract coefficient for treatment
+  site3 = samples_from_bayes  # Extract theta[treatment]
+)
+
+# Proceed with shrinkr as usual
+mix <- fit_mixture(samples_heterogeneous, K_max = 3)
+fit <- shrink(mix, hierarchical_priors = priors)
+```
+
+### Scenario 2: Meta-Analysis of Published Studies
+
+Combine published results without raw data:
+
+```{r meta_analysis, eval=FALSE}
+# Extracted from publications
+published_estimates <- c(
+  "Smith et al. (2020)" = 0.45,
+  "Jones et al. (2021)" = 0.52,
+  "Garcia et al. (2022)" = 0.38,
+  "Williams et al. (2023)" = 0.48
+)
+
+published_ses <- c(0.12, 0.15, 0.10, 0.13)
+
+# Apply shrinkr for Bayesian meta-analysis
+# NOTE: This assumes published estimates are approximately normal!
+# This is usually reasonable for:
+#   - Large studies (CLT has kicked in)
+#   - Parameters on unrestricted scale (e.g., log-OR, not OR)
+#   - Standard errors are from asymptotic approximations
+
+fit_meta <- shrink(
+  mle = published_estimates,
+  var_matrix = published_ses^2,
+  hierarchical_priors = priors
+)
+
+# CAUTION: If studies report:
+#   - Odds ratios (not log-OR) - use log-scale
+#   - Proportions near 0 or 1 - may be skewed
+#   - Small sample sizes - CLT may not hold
+# In these cases, request posterior samples if possible
+```
+
+### Scenario 3: Iterative Federated Updates
+
+New sites join the network over time:
+
+```{r iterative_updates, eval=FALSE}
+# Initial network (3 sites)
+fit_initial <- shrink(samples_initial, priors)
+
+# New site joins - refit with 4 sites
+samples_updated <- c(samples_initial, list(new_site = new_samples))
+fit_updated <- shrink(samples_updated, priors)
+
+# Compare network estimates before/after
+mu_before <- mean(extract_mu_tau(fit_initial)$mu)
+mu_after <- mean(extract_mu_tau(fit_updated)$mu)
+```
+
+## Federated Learning Best Practices
+
+### 1. Establish Data Governance
+
+**Before sharing any summaries:**   
+- Define what parameters will be shared   
+- Establish data use agreements for summary statistics   
+- Document privacy protections   
+- Get institutional approval   
+
+### 2. Standardize Stage 1 Models
+
+**Ensure comparability:**   
+- Use consistent outcome definitions   
+- Standardize predictor coding/scaling     
+- Document any site-specific modifications   
+- Agree on parameter naming conventions   
+
+### 3. Verify Normality (if using summaries
+
+**If using Path B (summary statistics only), sites must:**
+- Generate QQ plots of posteriors   
+- Compute skewness and excess kurtosis   
+- Share diagnostic plots with coordinator   
+- Agree normality is reasonable before proceeding
+
+**Red flags for non-normality:**   
+- Boundary constraints (variance parameters, probabilities)   
+- Small sample sizes (n < 30-50 per site)   
+- Highly skewed or heavy-tailed data   
+
+**When in doubt, use Path A** (mixture approximation).
+
+### 4. Quality Control
+
+**Central coordinator should:**   
+- Check for outliers in shared summaries   
+- Verify mixture approximation quality (Path A)   
+- Assess prior-data conflicts   
+- Report back site-specific diagnostics   
+
+```{r quality_control}
+# Example: Flag suspicious estimates
+qc_results <- site_summaries %>%
+  mutate(
+    z_score = (beta_age_mean - median(beta_age_mean)) / mad(beta_age_mean),
+    flag = ifelse(abs(z_score) > 3, "Review", "OK")
+  )
+
+cat("Quality control flags:\n")
+print(qc_results %>% select(site, beta_age_mean, z_score, flag))
+```
+
+### 5. Sensitivity Analysis
+
+Test robustness to prior specifications:
+
+```{r sensitivity, results='hide'}
+# Alternative prior: More heterogeneity
+priors_alt <- list(
+  mu = dist_normal(0.05, 0.025),
+  tau = dist_truncated(dist_student_t(3, 0, 0.02), lower = 0)  # Wider tau
+)
+
+fit_alt <- shrink(
+  mixture = mix,
+  hierarchical_priors = priors_alt,
+  chains = 2,
+  iter = 1000,
+  warmup = 500,
+  seed = 456
+)
+```
+
+```{r sensitivity_compare}
+# Compare key results
+mu_base <- mean(extract_mu_tau(fit_full_post)$mu)
+mu_alt <- mean(extract_mu_tau(fit_alt)$mu)
+
+tau_base <- mean(extract_mu_tau(fit_full_post)$tau)
+tau_alt <- mean(extract_mu_tau(fit_alt)$tau)
+
+cat("Sensitivity to prior on tau:\n")
+cat("  mu: Base =", round(mu_base, 4), ", Alternative =", round(mu_alt, 4), "\n")
+cat("  tau: Base =", round(tau_base, 4), ", Alternative =", round(tau_alt, 4), "\n")
+```
+
+### 6. Transparent Reporting
+
+**Share with network participants:**   
+- Network-level estimates (μ, τ)   
+- Site-specific shrunken estimates   
+- Diagnostics (convergence, sensitivity)   
+- Quantified uncertainty reduction   
+
+```{r reporting}
+# Create site-specific report
+site_report <- data.frame(
+  site = theta_post$group,
+  original_estimate = site_summaries$beta_age_mean,
+  original_se = site_summaries$beta_age_se,
+  calibrated_estimate = theta_post$mean,
+  calibrated_se = theta_post$sd,
+  uncertainty_reduction = uncertainty_comparison$reduction_pct
+) %>%
+  mutate(across(where(is.numeric), ~round(.x, 4)))
+
+cat("\nFederated Learning Results Report\n")
+cat("==================================\n\n")
+cat("Network-level estimate (μ):", round(mean(mu_tau_full$mu), 4), "\n")
+cat("Between-site heterogeneity (τ):", round(mean(mu_tau_full$tau), 4), "\n\n")
+cat("Site-specific calibrated estimates:\n")
+print(site_report)
+```
+
+
+
+## Advantages of shrinkr for Federated Learning
+
+| Feature | Benefit |
+|---------|---------|
+| **Two-stage design** | Clean separation between local (Stage 1) and collaborative (Stage 2) analysis |
+| **Flexible sharing options** | Can share full posteriors, mixture approximations, OR summaries (if CLT holds) |
+| **Privacy preserving** | No patient-level data exposure |
+| **Flexible Stage 1** | Each site can use their preferred modeling approach |
+| **Transparent shrinkage** | Sites understand how their estimates are adjusted |
+| **Uncertainty quantification** | Proper propagation of both within-site and between-site uncertainty |
+| **Handles non-normality** | Mixture approximation works for skewed/multimodal posteriors |
+| **Regulatory friendly** | Complies with HIPAA, GDPR, and institutional policies |
+
+## When to Use Federated shrinkr
+
+**Ideal scenarios:**   
+- Multi-center clinical trials   
+- Hospital network collaborations   
+- International consortia   
+- Meta-analyses with limited published data   
+- Any setting where data cannot be centralized
+
+**Requirements:**
+- Sites can fit Bayesian models independently   
+- Sites can share posterior samples OR mixture approximations   
+- **OR** sites can share means + SEs **AND** posteriors are approximately normal   
+- Common parameter of interest across sites   
+- Central coordinator to run Stage 2   
+
+**Not recommended when:**   
+- Sites have very different populations (pooling may not make sense)   
+- Sites cannot agree on parameter definitions   
+- Posteriors are highly non-normal AND sites cannot share full posteriors/mixtures
+
+## Summary
+
+The shrinkr package enables **privacy-preserving federated learning** through its two-stage design:   
+
+1. **Stage 1** (at each site): Fit local models behind firewall   
+2. **Check normality** (if using summaries): Verify CLT assumptions hold   
+3. **Share**: Full posteriors (Path A, ~200KB) or summaries (Path B, ~16 bytes)    
+4. **Stage 2** (central): Apply hierarchical shrinkage   
+5. **Return**: Improved site-specific estimates   
+
+**Key advantages:**   
+- Data sovereignty preserved   
+- Flexible sharing (full posteriors OR summaries)   
+- Handles non-normal posteriors (via mixture approximation)   
+- Improved estimates for all sites   
+- Proper uncertainty quantification   
+- Compliant with privacy regulations   
+
+**Critical decision: Which path?**   
+- **Path A** (posteriors/mixture): Always valid, handles any posterior shape   
+- **Path B** (summaries): Valid only if posteriors are approximately normal   
+- **When uncertain**: Use Path A (safer, still minimal data sharing)   
+
+
+## Additional Resources
+
+```{r resources, eval=FALSE}
+# See also:
+vignette("getting_started")  # Core shrinkr workflow
+vignette("tidy_bayesian_workflow")  # Working with posteriors
+vignette("brms_integration")  # Using brms for Stage 1
+```
+
+## Session Info
+
+```{r sessioninfo}
+sessionInfo()
+```

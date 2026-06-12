@@ -1,0 +1,768 @@
+---
+title: "Survival Analysis with brms and shrinkr"
+author: "Jacob M. Maronge"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Survival Analysis with brms and shrinkr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 10,
+  fig.height = 7,
+  warning = FALSE,
+  message = FALSE
+)
+
+run_expensive <- identical(Sys.getenv("SHRINKR_RUN_VIGNETTES"), "true")
+```
+
+## Overview
+
+This vignette demonstrates hierarchical shrinkage for survival analysis using the classic `veteran` lung cancer dataset. We explore a key clinical question: **Does the treatment effect vary by lung cancer cell type?**
+
+Rather than treating cell type-specific treatment effects as fixed interaction terms, we model them as **random effects drawn from a common distribution**. This hierarchical structure allows us to:
+
+- Borrow strength across cell types, especially for small subgroups
+- Estimate the overall mean treatment effect (`mu`)
+- Quantify heterogeneity in treatment effects (`tau`)
+- Shrink extreme subgroup estimates toward the group mean
+
+We compare **three modeling approaches**:
+
+1. **Two-stage (brms + shrinkr)**: fit a Cox model in `brms`, then apply hierarchical shrinkage in `shrinkr`
+2. **Full hierarchical (brms)**: fit the hierarchical Cox model in one step
+3. **Two-stage (frequentist + shrinkr)**: use Cox model estimates from `survival::coxph()`, then apply shrinkage
+
+The two-stage `brms` workflow produces nearly identical results to the full hierarchical model, while making it easy to explore alternative hierarchical priors without repeatedly refitting the Stage 1 model.
+
+Some model-fitting steps are computationally intensive and are not evaluated during routine package checks. All code needed to reproduce the analysis is shown below.
+
+## Setup
+
+```{r packages}
+library(shrinkr)
+library(brms)
+library(tidybayes)
+library(distributional)
+library(tidyverse)
+library(survival)
+library(posterior)
+library(patchwork)
+
+theme_set(theme_minimal(base_size = 12))
+
+cell_types <- c("squamous", "smallcell", "adeno", "large")
+
+prior_specs <- list(
+  very_strong = list(name = "Very Strong", scale = 0.1),
+  strong = list(name = "Strong", scale = 0.25),
+  moderate = list(name = "Moderate", scale = 0.5),
+  weak = list(name = "Weak", scale = 1.0),
+  very_weak = list(name = "Very Weak", scale = 2.0)
+)
+```
+
+```{r load_cached_results, include=FALSE}
+if (!run_expensive) {
+  veteran_analysis <- get("veteran_analysis", envir = asNamespace("shrinkr"))
+}
+```
+
+## The Veteran Dataset
+
+```{r explore_data}
+data(veteran, package = "survival")
+
+head(veteran)
+table(veteran$celltype, veteran$trt)
+
+veteran %>%
+  group_by(celltype, trt) %>%
+  summarise(
+    n = n(),
+    deaths = sum(status),
+    median_time = median(time),
+    .groups = "drop"
+  )
+```
+
+**Variables:**
+
+- `time`: survival time (days)
+- `status`: death indicator (`1 = died`)
+- `trt`: treatment (`1 = standard`, `2 = test`)
+- `celltype`: cancer type (`squamous`, `smallcell`, `adeno`, `large`)
+- `karno`: Karnofsky score (performance status)
+- `age`: age in years
+
+The dataset contains 137 patients across four cell types, with varying sample sizes.
+
+## Approach 1: Two-Stage (brms + shrinkr)
+
+### Stage 1: Fit Cox Model
+
+We begin by fitting a Cox proportional hazards model that allows the treatment effect to vary by cell type. At this stage we estimate subgroup-specific treatment effects without adding hierarchical shrinkage across cell types. That hierarchical regularization is introduced in Stage 2.
+
+```{r fit_brms_uninformative, eval=run_expensive}
+brms_uninformative <- brm(
+  time | cens(1 - status) ~ trt:celltype + karno + age,
+  data = veteran,
+  family = cox(),
+  chains = 4,
+  iter = 4000,
+  warmup = 1000,
+  seed = 123
+)
+
+brms_uninformative_summary <- capture.output(print(summary(brms_uninformative)))
+```
+
+```{r fit_brms_uninformative_fallback, include=FALSE}
+if (!run_expensive) {
+  brms_uninformative_summary <- veteran_analysis$brms_uninformative_summary
+}
+```
+
+**What this model does:**
+
+- Estimates a separate log hazard ratio for the test treatment in each cell type
+- Adjusts for baseline performance status (`karno`) and age
+- Leaves pooling across cell types to the second-stage hierarchical model
+
+Results:
+
+```{r show_brms_uninformative}
+cat(brms_uninformative_summary, sep = "\n")
+```
+
+### Stage 2: Apply Hierarchical Shrinkage
+
+Now we extract the cell type-specific treatment effect posteriors and apply hierarchical shrinkage.
+
+#### Step 1: Extract posterior samples
+
+```{r extract_posteriors, eval=run_expensive}
+brms_posteriors <- brms_uninformative %>%
+  spread_draws(`b_trt:celltypesquamous`, `b_trt:celltypesmallcell`,
+               `b_trt:celltypeadeno`, `b_trt:celltypelarge`) %>%
+  select(-c(.chain, .iteration, .draw)) %>%
+  pivot_longer(everything(), names_to = "celltype", values_to = "value") %>%
+  mutate(celltype = gsub("b_trt:celltype", "", celltype)) %>%
+  group_by(celltype) %>%
+  summarise(draws = list(matrix(value, ncol = 1)), .groups = "drop") %>%
+  deframe()
+```
+
+```{r extract_posteriors_fallback, include=FALSE}
+if (!run_expensive) {
+  brms_posteriors <- veteran_analysis$brms_posteriors
+}
+```
+
+`brms_posteriors` is a named list containing posterior draws for each cell type.
+
+#### Step 2: Fit a Gaussian mixture approximation
+
+The `fit_mixture()` function approximates each subgroup posterior with a mixture of Gaussian components. This creates a flexible representation of the Stage 1 posterior that can be passed to `shrink()`.
+
+```{r fit_mixture_explain, eval=run_expensive}
+mix_brms <- fit_mixture(brms_posteriors, K_max = 3, verbose = TRUE)
+```
+
+```{r fit_mixture_explain_fallback, include=FALSE}
+if (!run_expensive) {
+  mix_brms <- veteran_analysis$mix_brms
+}
+```
+
+```{r show_mixture}
+print(mix_brms)
+plot(mix_brms, draws = brms_posteriors)
+```
+
+**Understanding the mixture approximation:**
+
+- Each posterior is approximated as a weighted sum of Gaussian components
+- The number of components is chosen separately for each cell type
+- This allows the approximation to capture skewness or heavier tails when needed
+
+#### Step 3: Apply a hierarchical prior
+
+```{r define_moderate_prior}
+priors_moderate <- list(
+  mu = dist_normal(0, 1),
+  tau = dist_truncated(dist_normal(0, 0.5), lower = 0)
+)
+```
+
+```{r shrink_explain, eval=run_expensive}
+fit_twostage_brms <- shrink(
+  mixture = mix_brms,
+  hierarchical_priors = priors_moderate,
+  chains = 4,
+  iter = 4000,
+  warmup = 1000,
+  seed = 456
+)
+
+moderate_brms_output <- capture.output(print(fit_twostage_brms))
+```
+
+```{r shrink_explain_fallback, include=FALSE}
+if (!run_expensive) {
+  moderate_brms_output <- veteran_analysis$sensitivity_summaries$moderate_brms$print_output
+}
+```
+
+Results:
+
+```{r show_twostage_brms}
+cat(moderate_brms_output, sep = "\n")
+```
+
+**Interpreting the shrinkage:**
+
+- Cell type-specific estimates are pulled toward the overall mean (`mu`)
+- The amount of shrinkage depends on `tau`, the between-cell-type heterogeneity
+- Smaller `tau` implies stronger pooling
+- Larger `tau` implies weaker pooling
+
+## Approach 2: Full Hierarchical (brms)
+
+For comparison, we fit the corresponding one-stage hierarchical Cox model directly in `brms`.
+
+```{r fit_brms_hierarchical, eval=run_expensive}
+brms_hierarchical <- brm(
+  time | cens(1 - status) ~ trt + (0 + trt | celltype) + karno + age,
+  data = veteran,
+  family = cox(),
+  prior = c(
+    prior(normal(0, 1), class = b, coef = "trt"),
+    prior(normal(0, 0.5), class = sd, group = "celltype", lb = 0)
+  ),
+  chains = 4,
+  iter = 4000,
+  warmup = 1000,
+  seed = 123
+)
+
+brms_hierarchical_summary <- capture.output(print(summary(brms_hierarchical)))
+
+brms_hier_effects <- brms_hierarchical %>%
+  spread_draws(r_celltype[celltype, term], b_trt) %>%
+  filter(term == "trt") %>%
+  mutate(theta = b_trt + r_celltype) %>%
+  group_by(celltype) %>%
+  summarise(
+    hr_mean = exp(mean(theta)),
+    hr_lower = exp(quantile(theta, 0.025)),
+    hr_upper = exp(quantile(theta, 0.975)),
+    .groups = "drop"
+  )
+```
+
+```{r fit_brms_hierarchical_fallback, include=FALSE}
+if (!run_expensive) {
+  brms_hierarchical_summary <- veteran_analysis$brms_hierarchical_summary
+  brms_hier_effects <- veteran_analysis$brms_hier_effects
+}
+```
+
+Results:
+
+```{r show_brms_hierarchical}
+cat(brms_hierarchical_summary, sep = "\n")
+```
+
+## Approach 3: Two-Stage (Frequentist + shrinkr)
+
+We can also apply the second-stage shrinkage model to standard Cox model estimates and their covariance matrix.
+
+```{r fit_cox, eval=run_expensive}
+cox_model <- coxph(
+  Surv(time, status) ~ trt:celltype + karno + age,
+  data = veteran
+)
+
+cox_summary <- summary(cox_model)
+
+trt_idx <- grep("^trt:celltype", names(coef(cox_model)))
+
+trt_effects <- coef(cox_model)[trt_idx]
+trt_vcov <- vcov(cox_model)[trt_idx, trt_idx, drop = FALSE]
+
+names(trt_effects) <- gsub("^trt:celltype", "", names(trt_effects))
+rownames(trt_vcov) <- colnames(trt_vcov) <- names(trt_effects)
+```
+
+```{r fit_cox_fallback, include=FALSE}
+if (!run_expensive) {
+  cox_summary <- veteran_analysis$cox_summary
+  trt_effects <- veteran_analysis$trt_effects
+  trt_vcov <- veteran_analysis$trt_vcov
+}
+```
+
+```{r show_cox}
+print(cox_summary)
+```
+
+```{r show_cox_effects}
+print("Treatment effects (log HR):")
+print(trt_effects)
+
+print("\nStandard errors:")
+print(sqrt(diag(trt_vcov)))
+```
+
+```{r shrink_freq, eval=run_expensive}
+fit_twostage_freq <- shrink(
+  mle = trt_effects,
+  var_matrix = trt_vcov,
+  hierarchical_priors = priors_moderate,
+  chains = 4,
+  iter = 4000,
+  warmup = 1000,
+  seed = 456
+)
+
+moderate_freq_output <- capture.output(print(fit_twostage_freq))
+```
+
+```{r shrink_freq_fallback, include=FALSE}
+if (!run_expensive) {
+  moderate_freq_output <- veteran_analysis$sensitivity_summaries$moderate_freq$print_output
+}
+```
+
+Results:
+
+```{r show_twostage_freq}
+cat(moderate_freq_output, sep = "\n")
+```
+
+## Compare Three Approaches
+
+### Numerical comparison
+
+```{r comparison_table, eval=run_expensive}
+theta_brms <- summary(fit_twostage_brms)$theta %>%
+  transmute(
+    celltype = group,
+    twostage_brms = mean
+  )
+
+theta_freq <- summary(fit_twostage_freq)$theta %>%
+  transmute(
+    celltype = group,
+    twostage_freq = mean
+  )
+
+comparison <- brms_hier_effects %>%
+  transmute(
+    celltype,
+    full_hier_brms = log(hr_mean)
+  ) %>%
+  left_join(theta_brms, by = "celltype") %>%
+  left_join(theta_freq, by = "celltype") %>%
+  mutate(
+    diff_two_stage_vs_full = twostage_brms - full_hier_brms
+  )
+```
+
+```{r comparison_table_fallback, include=FALSE}
+if (!run_expensive) {
+  comparison <- veteran_analysis$comparison
+}
+```
+
+```{r comparison_table_show}
+knitr::kable(
+  comparison[, 1:4],
+  digits = 3,
+  caption = "Comparison of treatment effects (log HR scale)"
+)
+```
+
+**Key observations:**
+
+- The two-stage `brms + shrinkr` and full hierarchical `brms` fits are nearly identical
+- This supports the equivalence of the two formulations in this example
+- The frequentist Stage 1 approach differs modestly because the first-stage estimates differ
+- All approaches show shrinkage toward a common mean
+
+### Visual comparison
+
+```{r compare_approaches, fig.width=12, fig.height=8, eval=run_expensive}
+theta_brms_plot <- summary(fit_twostage_brms)$theta %>%
+  mutate(
+    approach = "Two-Stage (brms + shrinkr)",
+    hr_mean = exp(mean),
+    hr_lower = exp(q2.5),
+    hr_upper = exp(q97.5),
+    celltype = group
+  ) %>%
+  select(celltype, approach, hr_mean, hr_lower, hr_upper)
+
+theta_freq_plot <- summary(fit_twostage_freq)$theta %>%
+  mutate(
+    approach = "Two-Stage (Frequentist + shrinkr)",
+    hr_mean = exp(mean),
+    hr_lower = exp(q2.5),
+    hr_upper = exp(q97.5),
+    celltype = group
+  ) %>%
+  select(celltype, approach, hr_mean, hr_lower, hr_upper)
+
+all_approaches <- bind_rows(
+  theta_brms_plot,
+  brms_hier_effects %>% mutate(approach = "Full Hierarchical (brms)"),
+  theta_freq_plot
+) %>%
+  mutate(
+    approach = factor(approach, levels = c(
+      "Two-Stage (brms + shrinkr)",
+      "Full Hierarchical (brms)",
+      "Two-Stage (Frequentist + shrinkr)"
+    ))
+  )
+```
+
+```{r compare_approaches_fallback, include=FALSE}
+if (!run_expensive) {
+  theta_brms_plot <- veteran_analysis$sensitivity_summaries$moderate_brms$theta_summary %>%
+    mutate(
+      approach = "Two-Stage (brms + shrinkr)",
+      hr_mean = exp(mean),
+      hr_lower = exp(q2.5),
+      hr_upper = exp(q97.5),
+      celltype = group
+    ) %>%
+    select(celltype, approach, hr_mean, hr_lower, hr_upper)
+
+  theta_freq_plot <- veteran_analysis$sensitivity_summaries$moderate_freq$theta_summary %>%
+    mutate(
+      approach = "Two-Stage (Frequentist + shrinkr)",
+      hr_mean = exp(mean),
+      hr_lower = exp(q2.5),
+      hr_upper = exp(q97.5),
+      celltype = group
+    ) %>%
+    select(celltype, approach, hr_mean, hr_lower, hr_upper)
+
+  all_approaches <- bind_rows(
+    theta_brms_plot,
+    veteran_analysis$brms_hier_effects %>% mutate(approach = "Full Hierarchical (brms)"),
+    theta_freq_plot
+  ) %>%
+    mutate(
+      approach = factor(approach, levels = c(
+        "Two-Stage (brms + shrinkr)",
+        "Full Hierarchical (brms)",
+        "Two-Stage (Frequentist + shrinkr)"
+      ))
+    )
+}
+```
+
+```{r compare_approaches_show, fig.width=12, fig.height=8}
+ggplot(all_approaches, aes(x = celltype, y = hr_mean, color = approach)) +
+  geom_hline(yintercept = 1, linetype = "dashed", alpha = 0.5) +
+  geom_pointrange(
+    aes(ymin = hr_lower, ymax = hr_upper),
+    position = position_dodge(width = 0.5),
+    size = 0.8
+  ) +
+  scale_y_log10() +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "Comparison of Three Modeling Approaches",
+    subtitle = "Treatment effects by cell type (hazard ratios)",
+    x = "Cell Type",
+    y = "Hazard Ratio (log scale)",
+    color = "Approach"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+```
+
+## Sensitivity Analysis: Exploring Different Priors
+
+A main advantage of the two-stage framework is that we can explore many hierarchical priors in Stage 2 without refitting the Stage 1 survival model.
+
+```{r show_priors}
+prior_summary <- tibble(
+  Strength = c("Very Strong", "Strong", "Moderate", "Weak", "Very Weak"),
+  Prior = c(
+    "Half-Normal(0, 0.1)",
+    "Half-Normal(0, 0.25)",
+    "Half-Normal(0, 0.5)",
+    "Half-Normal(0, 1.0)",
+    "Half-Normal(0, 2.0)"
+  ),
+  Scale = c(0.1, 0.25, 0.5, 1.0, 2.0),
+  Interpretation = c(
+    "Very similar effects expected",
+    "Similar effects expected",
+    "Moderate heterogeneity allowed",
+    "Substantial differences allowed",
+    "Large differences allowed"
+  )
+)
+
+knitr::kable(prior_summary)
+```
+
+```{r sensitivity_fits, eval=run_expensive}
+all_priors <- list(
+  very_strong = list(
+    mu = dist_normal(0, 1),
+    tau = dist_truncated(dist_normal(0, 0.1), lower = 0)
+  ),
+  strong = list(
+    mu = dist_normal(0, 1),
+    tau = dist_truncated(dist_normal(0, 0.25), lower = 0)
+  ),
+  moderate = list(
+    mu = dist_normal(0, 1),
+    tau = dist_truncated(dist_normal(0, 0.5), lower = 0)
+  ),
+  weak = list(
+    mu = dist_normal(0, 1),
+    tau = dist_truncated(dist_normal(0, 1.0), lower = 0)
+  ),
+  very_weak = list(
+    mu = dist_normal(0, 1),
+    tau = dist_truncated(dist_normal(0, 2.0), lower = 0)
+  )
+)
+
+# --- brms fits ---
+sensitivity_fits_brms <- lapply(all_priors, function(prior) {
+  shrink(
+    mixture = mix_brms,
+    hierarchical_priors = prior,
+    chains = 4,
+    iter = 4000,
+    warmup = 1000
+  )
+})
+
+# --- frequentist fits ---
+sensitivity_fits_freq <- lapply(all_priors, function(prior) {
+  shrink(
+    mle = trt_effects,
+    var_matrix = trt_vcov,
+    hierarchical_priors = prior,
+    chains = 4,
+    iter = 4000,
+    warmup = 1000
+  )
+})
+
+# --- summaries ---
+sensitivity_summaries <- c(
+  purrr::imap(sensitivity_fits_brms, function(fit, nm) {
+    summ <- summary(fit)
+    list(
+      theta_summary = summ$theta,
+      mu_tau_summary = summ$mu_tau,
+      print_output = capture.output(print(fit))
+    )
+  }),
+  purrr::imap(sensitivity_fits_freq, function(fit, nm) {
+    summ <- summary(fit)
+    list(
+      theta_summary = summ$theta,
+      mu_tau_summary = summ$mu_tau,
+      print_output = capture.output(print(fit))
+    )
+  })
+)
+
+# --- name them clearly ---
+names(sensitivity_summaries) <- c(
+  paste0(names(all_priors), "_brms"),
+  paste0(names(all_priors), "_freq")
+)
+```
+
+```{r sensitivity_fits_fallback, include=FALSE}
+if (!run_expensive) {
+  sensitivity_summaries <- veteran_analysis$sensitivity_summaries
+  prior_specs <- veteran_analysis$prior_specs
+}
+```
+
+### Prior densities
+
+```{r prior_densities, fig.width=10, fig.height=5}
+tau_seq <- seq(0, 3, length.out = 200)
+
+prior_densities <- lapply(names(prior_specs), function(spec_name) {
+  spec <- prior_specs[[spec_name]]
+  tibble(
+    tau = tau_seq,
+    density = dnorm(tau_seq, 0, spec$scale) * 2,
+    prior_strength = spec$name,
+    scale = spec$scale
+  )
+}) %>%
+  bind_rows() %>%
+  mutate(
+    prior_strength = factor(prior_strength, levels = c(
+      "Very Strong", "Strong", "Moderate", "Weak", "Very Weak"
+    ))
+  )
+
+ggplot(prior_densities, aes(x = tau, y = density, color = prior_strength)) +
+  geom_line(linewidth = 1.2) +
+  scale_color_brewer(palette = "RdYlBu", direction = -1) +
+  labs(
+    title = "Prior Densities for the Heterogeneity Parameter (tau)",
+    subtitle = "Half-Normal(0, sigma) priors with increasing scale",
+    x = "tau",
+    y = "Density",
+    color = "Prior Strength"
+  ) +
+  theme(legend.position = "right")
+```
+
+### Heterogeneity estimates
+
+```{r tau_sensitivity}
+tau_results <- lapply(names(sensitivity_summaries), function(fit_name) {
+  summary_obj <- sensitivity_summaries[[fit_name]]
+  prior_name <- sub("_(brms|freq)$", "", fit_name)
+  approach <- if (grepl("_brms$", fit_name)) "brms + shrinkr" else "Frequentist + shrinkr"
+
+  summary_obj$mu_tau_summary %>%
+    filter(parameter == "tau") %>%
+    mutate(
+      prior_strength = prior_specs[[prior_name]]$name,
+      prior_scale = prior_specs[[prior_name]]$scale,
+      approach = approach
+    )
+}) %>%
+  bind_rows() %>%
+  mutate(
+    prior_strength = factor(
+      prior_strength,
+      levels = c("Very Strong", "Strong", "Moderate", "Weak", "Very Weak")
+    )
+  )
+
+if (all(c("q2.5", "q97.5") %in% names(tau_results))) {
+  tau_results <- tau_results %>%
+    mutate(lower = `q2.5`, upper = `q97.5`)
+} else if (all(c("q5", "q95") %in% names(tau_results))) {
+  tau_results <- tau_results %>%
+    mutate(lower = q5, upper = q95)
+} else {
+  stop(
+    "Could not find interval columns in sensitivity_summaries$mu_tau_summary. ",
+    "Available columns are: ",
+    paste(names(tau_results), collapse = ", ")
+  )
+}
+
+ggplot(tau_results, aes(x = prior_scale, y = mean, color = approach)) +
+  geom_point(size = 3, position = position_dodge(width = 0.1)) +
+  geom_errorbar(
+    aes(ymin = lower, ymax = upper),
+    width = 0.1,
+    linewidth = 1,
+    position = position_dodge(width = 0.1)
+  ) +
+  geom_line(aes(group = approach), position = position_dodge(width = 0.1)) +
+  scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1.0, 2.0)) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Sensitivity of the Heterogeneity Parameter (tau)",
+    subtitle = "How prior scale affects the estimated between-cell-type variation",
+    x = "Prior Scale (log scale)",
+    y = "Posterior tau",
+    color = "Stage 1 Approach"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+**Interpretation:**
+
+- Stronger priors constrain `tau` toward smaller values and produce more shrinkage
+- Weaker priors allow more between-cell-type variation
+- The posterior for `tau` stabilizes as the prior becomes less restrictive
+
+### Impact on cell type estimates
+
+```{r theta_sensitivity_prep}
+theta_sensitivity <- lapply(names(sensitivity_summaries), function(fit_name) {
+  summary_obj <- sensitivity_summaries[[fit_name]]
+  prior_name <- sub("_(brms|freq)$", "", fit_name)
+  approach <- if (grepl("_brms$", fit_name)) "brms + shrinkr" else "Frequentist + shrinkr"
+
+  summary_obj$theta_summary %>%
+    mutate(
+      prior_strength = prior_specs[[prior_name]]$name,
+      prior_scale = prior_specs[[prior_name]]$scale,
+      approach = approach,
+      hr_mean = exp(mean),
+      hr_lower = exp(q2.5),
+      hr_upper = exp(q97.5)
+    )
+}) %>%
+  bind_rows() %>%
+  mutate(
+    prior_strength = factor(prior_strength, levels = c(
+      "Very Strong", "Strong", "Moderate", "Weak", "Very Weak"
+    ))
+  )
+```
+
+```{r theta_sensitivity_plot, fig.width=12, fig.height=10}
+ggplot(theta_sensitivity, aes(x = prior_scale, y = hr_mean, color = approach)) +
+  geom_hline(yintercept = 1, linetype = "dashed", alpha = 0.5) +
+  geom_point(size = 2, position = position_dodge(width = 0.1)) +
+  geom_errorbar(
+    aes(ymin = hr_lower, ymax = hr_upper),
+    width = 0.1,
+    position = position_dodge(width = 0.1)
+  ) +
+  geom_line(aes(group = approach), position = position_dodge(width = 0.1)) +
+  facet_wrap(~group, ncol = 2, scales = "free_y") +
+  scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1.0, 2.0)) +
+  scale_y_log10() +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Sensitivity Analysis: Cell Type-Specific Treatment Effects",
+    subtitle = "How the prior scale affects hazard ratio estimates",
+    x = "Prior Scale (log scale)",
+    y = "Hazard Ratio (log scale)",
+    color = "Stage 1 Approach"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+```
+
+## Key Takeaways
+
+1. The two-stage `brms + shrinkr` workflow closely matches the full hierarchical `brms` analysis in this example.
+2. The two-stage approach is modular: fit the survival model once, then explore many hierarchical priors efficiently.
+3. Sensitivity analysis becomes straightforward because Stage 2 can be rerun without refitting Stage 1.
+4. `fit_mixture()` provides a flexible approximation to the subgroup posteriors, and `shrink()` adds hierarchical regularization on top of that approximation.
+
+## Session Info
+
+```{r session}
+sessionInfo()
+```

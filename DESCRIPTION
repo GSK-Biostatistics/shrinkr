@@ -1,0 +1,46 @@
+Package: shrinkr
+Type: Package
+Title: Modular Bayesian Hierarchical Shrinkage Models
+Version: 0.4.3
+Date: 2026-05-06
+Authors@R: c(
+    person(given = c("Jacob", "M."),
+           family = "Maronge",
+           role = c("aut", "cre"),
+           email = "jacob.m.maronge@gsk.com",
+           comment = c(ORCID = "0000-0003-3606-0841")),
+    person("GlaxoSmithKline Research & Development Limited",
+           role = c("cph", "fnd")),
+    person("Trustees of", "Columbia University",
+           role = "cph",
+           comment = "R/stanmodels.R, configure, configure.win"))
+Description: 
+    Implements a two-stage Bayesian hierarchical modeling framework for
+    applying shrinkage to subgroup-specific effects. The package separates
+    model fitting (Stage 1) from hierarchical shrinkage (Stage 2), enabling
+    modular sensitivity analyses without refitting expensive MCMC chains.
+    Supports flexible prior specifications through the distributional package,
+    mixture approximations via mclust, and efficient Stan-based inference.
+License: GPL (>= 3)
+Encoding: UTF-8
+Depends: R (>= 4.1)
+Imports: rstan (>= 2.32.7), mclust, posterior, distributional, cli,
+        tibble, dplyr, purrr, stats, utils, methods, Rcpp (>= 0.12.0),
+        RcppParallel (>= 5.0.1), rstantools (>= 2.5.0)
+Suggests: testthat (>= 3.0.0), ggplot2, knitr, rmarkdown, patchwork,
+        tidybayes, bayesplot, tidyverse, ggdist, ggridges, brms, tidyr,
+        survival, MASS, Matrix, beastt
+LinkingTo: BH (>= 1.66.0), Rcpp (>= 0.12.0), RcppEigen (>= 0.3.3.3.0),
+        RcppParallel (>= 5.0.1), rstan (>= 2.32.7), StanHeaders (>=
+        2.32.10)
+SystemRequirements: GNU make, C++17 compiler
+Roxygen: list(markdown = TRUE)
+Biarch: true
+URL: https://github.com/gsk-tech/shrinkr
+BugReports: https://github.com/gsk-tech/shrinkr/issues
+VignetteBuilder: knitr
+NeedsCompilation: yes
+Packaged: 2026-04-09 16:37:19 UTC; jmm04498
+Author: Jacob M. Maronge [aut, cre]
+Maintainer: Jacob M. Maronge <jacob.m.maronge@gsk.com>
+Config/roxygen2/version: 8.0.0

@@ -1,0 +1,652 @@
+---
+title: "Working with shrinkr in the Tidy Bayesian Ecosystem"
+author: "Jacob M. Maronge"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Working with shrinkr in the Tidy Bayesian Ecosystem}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+```{r setup, include = TRUE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 6,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+## Overview
+
+**shrinkr** is designed to work seamlessly with modern R workflows. This vignette shows practical examples of using shrinkr with:
+
+- **tidyverse**: dplyr, ggplot2, tidyr for data manipulation and visualization
+- **posterior**: Working with MCMC draws, computing summaries and diagnostics
+- **bayesplot**: MCMC diagnostic plots (trace plots, pairs plots, etc.)
+- **tidybayes**: Tidy manipulation of Bayesian posteriors
+- **ggdist**: Modern distribution visualizations
+```{r packages, eval=TRUE}
+library(shrinkr)
+library(distributional)
+library(MASS)
+
+# Bayesian ecosystem
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+library(ggdist)
+
+# Tidyverse
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+theme_set(theme_minimal(base_size = 12))
+```
+
+## Example: Multi-Region Clinical Trial
+
+Imagine a clinical trial run across 5 regions testing a new treatment. We have Stage 1 posterior samples from region-specific analyses.
+
+### Simulate Stage 1 Results
+```{r simulate_data, eval=TRUE}
+set.seed(1104)
+
+# True effects (unknown in practice)
+true_effects <- c(0.45, 0.60, 0.38, -0.10, 0.65)
+region_names <- c("North", "South", "East", "West", "Central")
+
+# Simulate posterior samples from Stage 1
+samples_list <- lapply(1:5, function(i) {
+  matrix(rnorm(2000, true_effects[i], 0.20), ncol = 1)
+})
+names(samples_list) <- region_names
+```
+
+### Fit shrinkr Model
+```{r fit_shrinkr, eval=TRUE}
+# Fit mixture approximation
+mix <- fit_mixture(samples_list, K_max = 3, verbose = FALSE)
+
+# Specify hierarchical priors
+priors <- list(
+  mu = dist_normal(0, 5),
+  tau = dist_truncated(dist_student_t(3, 0, 1), lower = 0)
+)
+
+# Run hierarchical shrinkage
+fit <- shrink(
+  mixture = mix,
+  hierarchical_priors = priors,
+  chains = 4,
+  iter = 2000,
+  warmup = 1000,
+  cores = 1,
+  seed = 2024,
+  refresh = 0
+)
+```
+
+## Working with posterior Package
+
+The **posterior** package provides the foundation for working with MCMC draws.
+
+### Extract Draws
+```{r extract_draws, eval=TRUE}
+# Extract all parameters as draws_df
+draws <- as_draws_df(fit)
+
+# See what's available
+variables(draws)
+
+# Extract specific parameters
+mu_tau_draws <- extract_mu_tau(fit)
+theta_draws <- extract_theta(fit)
+```
+
+### Basic Summaries
+```{r posterior_summaries, eval=TRUE}
+# Quick summary of all parameters
+summarize_draws(draws)
+
+# Focus on theta parameters
+summarize_draws(theta_draws, mean, sd, median, mad, ~quantile(.x, c(0.025, 0.975)))
+
+# Convergence diagnostics
+summarize_draws(draws, default_convergence_measures())
+
+# Custom summaries
+summarise_draws(
+  theta_draws,
+  mean,
+  sd,
+  prob_positive = ~mean(.x > 0),
+  prob_large = ~mean(.x > 0.5)
+)
+```
+
+### Check Convergence
+```{r convergence_check, eval=TRUE}
+# Check Rhat for all parameters
+all_rhats <- summarise_draws(draws, "rhat")
+max(all_rhats$rhat, na.rm = TRUE)
+
+# Check effective sample size
+summarise_draws(draws, "ess_bulk", "ess_tail") %>%
+  filter(ess_bulk < 400 | ess_tail < 400)
+
+# Detailed diagnostics for specific parameters
+summarise_draws(
+  subset_draws(draws, variable = c("mu", "tau")),
+  default_convergence_measures()
+)
+```
+
+## Diagnostic Plots with bayesplot
+
+**bayesplot** provides essential MCMC diagnostic visualizations.
+
+### Trace Plots
+
+Check for mixing and stationarity:
+```{r trace_plots, fig.width=10, fig.height=8, eval=TRUE}
+# Check hyperparameters
+mcmc_trace(draws, pars = c("mu", "tau", "tau_squared"))
+
+# Check first few thetas
+mcmc_trace(draws, regex_pars = "theta\\[[1-3]\\]")
+
+# All thetas at once (if not too many)
+mcmc_trace(draws, regex_pars = "theta")
+```
+
+### Density Plots
+
+Compare chains and check for multimodality:
+```{r density_plots, fig.width=10, fig.height=6, eval=TRUE}
+# Overlay densities from different chains
+mcmc_dens_overlay(draws, pars = c("mu", "tau"))
+
+# Individual densities
+mcmc_dens(draws, pars = c("mu", "tau", "tau_squared"))
+
+# Compare all thetas
+mcmc_dens_overlay(draws, regex_pars = "theta")
+```
+
+
+### Interval Plots
+
+Visualize posterior uncertainties:
+```{r interval_plots, fig.width=10, fig.height=6, eval=TRUE}
+# All thetas with 50% and 95% intervals
+mcmc_intervals(draws, regex_pars = "theta", prob = 0.5, prob_outer = 0.95)
+
+# With point estimates
+mcmc_intervals_data(draws, regex_pars = "theta") %>%
+  ggplot(aes(y = parameter)) +
+  geom_pointrange(aes(x = m, xmin = ll, xmax = hh)) +
+  geom_point(aes(x = m), size = 3) +
+  labs(title = "Posterior Intervals for Regional Effects", x = "Effect Size", y = NULL)
+```
+
+### Area Plots
+
+Density plots with shaded intervals:
+```{r area_plots, fig.width=10, fig.height=6, eval=TRUE}
+# Hyperparameters
+mcmc_areas(draws, pars = c("mu", "tau"), prob = 0.95, prob_outer = 0.99)
+
+# All thetas
+mcmc_areas(draws, regex_pars = "theta", prob = 0.8)
+```
+
+## Tidy Analysis with tidybayes
+
+**tidybayes** makes it easy to manipulate and visualize posteriors using tidy principles.
+
+### Spread and Gather Draws
+```{r tidybayes_basics, eval=TRUE}
+# Gather theta parameters into long format
+theta_tidy <- draws %>%
+  gather_draws(theta[region]) %>%
+  mutate(region = region_names[region])
+
+head(theta_tidy)
+
+# Spread into wide format
+theta_wide <- draws %>%
+  spread_draws(theta[region]) %>%
+  mutate(region = region_names[region])
+
+head(theta_wide)
+```
+
+### Point and Interval Summaries
+```{r tidybayes_summaries, eval=TRUE}
+# Median and 95% quantile intervals
+theta_tidy %>%
+  group_by(region) %>%
+  median_qi(.value, .width = 0.95)
+
+# Multiple interval widths
+theta_tidy %>%
+  group_by(region) %>%
+  median_qi(.value, .width = c(0.5, 0.8, 0.95))
+
+# Mean and HDI (highest density interval)
+theta_tidy %>%
+  group_by(region) %>%
+  mean_hdi(.value, .width = 0.95)
+```
+
+### Custom Summaries with dplyr
+```{r dplyr_summaries, eval=TRUE}
+# Probability of positive effect
+theta_tidy %>%
+  group_by(region) %>%
+  summarise(
+    mean_effect = mean(.value),
+    sd_effect = sd(.value),
+    prob_positive = mean(.value > 0),
+    prob_clinically_meaningful = mean(.value > 0.3),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(prob_positive))
+
+```
+
+### Computing Contrasts
+```{r contrasts, eval=TRUE}
+# Method 1: Using shrinkr's built-in function
+L <- rbind(
+  "South - North" = c(-1, 1, 0, 0, 0),
+  "Central - North" = c(-1, 0, 0, 0, 1),
+  "South - West" = c(0, 1, 0, -1, 0)
+)
+contrasts <- theta_contrasts(fit, L, labels = rownames(L))
+summarise_draws(contrasts)
+
+# Method 2: Using tidybayes compare_levels
+theta_wide %>%
+  compare_levels(theta, by = region, comparison = "pairwise") %>%
+  group_by(region) %>%
+  median_qi(theta) %>%
+  arrange(desc(theta))
+```
+
+## Modern Visualizations with ggdist
+
+**ggdist** provides publication-ready distribution visualizations.
+
+### Halfeye Plots
+
+Eye + interval visualization:
+```{r halfeye, fig.width=10, fig.height=6, eval=TRUE}
+theta_tidy %>%
+  ggplot(aes(y = region, x = .value)) +
+  stat_halfeye(
+    .width = c(0.66, 0.95),
+    fill = "steelblue"
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  labs(
+    title = "Regional Treatment Effects",
+    subtitle = "Posterior distributions with median and 66%/95% intervals",
+    x = "Treatment Effect",
+    y = NULL
+  )
+```
+
+### Slab + Interval
+
+Density with separate interval layer:
+```{r slab_interval, fig.width=10, fig.height=6, eval=TRUE}
+theta_tidy %>%
+  ggplot(aes(y = region, x = .value)) +
+  stat_slab(aes(fill_ramp = after_stat(level)), fill = "steelblue", alpha = 0.8) +
+  stat_pointinterval(.width = c(0.66, 0.95), position = position_nudge(y = -0.15)) +
+  scale_fill_ramp_discrete(range = c(1, 0.2), guide = "none") +
+  labs(
+    title = "Posterior Densities with Quantile Intervals",
+    x = "Treatment Effect",
+    y = NULL
+  )
+```
+
+### Quantile Dotplots
+
+Each dot = quantile of the distribution:
+```{r dotplot, fig.width=10, fig.height=6, eval=TRUE}
+theta_tidy %>%
+  ggplot(aes(y = region, x = .value)) +
+  stat_dots(quantiles = 100) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  labs(
+    title = "Quantile Dotplots",
+    subtitle = "Each dot represents 1% of the posterior",
+    x = "Treatment Effect",
+    y = NULL
+  )
+```
+
+### Gradient Intervals
+
+Continuous representation of uncertainty:
+```{r gradient, fig.width=10, fig.height=6, eval=TRUE}
+theta_tidy %>%
+  ggplot(aes(y = region, x = .value)) +
+  stat_gradientinterval(.width = ppoints(50)) +
+  scale_color_brewer(palette = "Blues", guide = "none") +
+  labs(
+    title = "Gradient Interval Representation",
+    x = "Treatment Effect",
+    y = NULL
+  )
+```
+
+## Comparing Pre- and Post-Shrinkage
+
+### Extract Both Estimates
+```{r compare_shrinkage, eval=TRUE}
+# Get pre-shrunk estimates from mixture
+pre_shrunk <- summarise_theta(fit) %>%
+  mutate(type = "Pre-shrunk")
+
+# Get post-shrunk estimates
+post_shrunk <- summarise_theta(fit) %>%
+  mutate(type = "Post-shrunk")
+
+# Or use shrinkr's built-in plot
+plot(fit, group_names = region_names)
+```
+
+### Custom Comparison Plot
+```{r custom_comparison, fig.width=12, fig.height=6, eval=TRUE}
+# Get the hierarchical mean (mu)
+mu_draws <- draws %>% spread_draws(mu)
+mu_mean <- mean(mu_draws$mu)
+
+# Combine with Stage 1 samples
+stage1_draws <- lapply(seq_along(samples_list), function(i) {
+  data.frame(
+    region = region_names[i],
+    .value = samples_list[[i]][,1],
+    type = "Stage 1"
+  )
+}) %>% bind_rows()
+
+stage2_draws <- theta_tidy %>%
+  mutate(type = "Stage 2 (Shrunk)")
+
+# Plot side by side
+bind_rows(stage1_draws, stage2_draws) %>%
+  ggplot(aes(y = region, x = .value, fill = type)) +
+  stat_halfeye(alpha = 0.7, position = position_dodge(width = 0.4)) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5, color = "gray50") +
+  geom_vline(xintercept = mu_mean, linetype = "solid", alpha = 0.8, 
+             color = "darkred", linewidth = 1) +
+  annotate("text", x = mu_mean, y = 0.5, 
+           label = sprintf("Global mean (μ) = %.2f", mu_mean),
+           hjust = -0.1, color = "darkred", size = 3.5) +
+  scale_fill_manual(values = c("Stage 1" = "gray70", "Stage 2 (Shrunk)" = "steelblue")) +
+  labs(
+    title = "Stage 1 vs Stage 2: Effect of Hierarchical Shrinkage",
+    subtitle = "Stage 2 estimates are pulled toward the global mean",
+    x = "Treatment Effect",
+    y = NULL,
+    fill = NULL
+  ) +
+  theme(legend.position = "bottom")
+```
+
+## Complete Workflow Example
+
+Here's a typical analysis workflow using tidy principles:
+```{r complete_workflow, fig.width=12, fig.height=10, eval=TRUE}
+# 1. Extract and prepare data
+analysis_data <- draws %>%
+  spread_draws(mu, tau, theta[i]) %>%
+  mutate(region = region_names[i])
+
+# 2. Compute summaries
+summary_table <- analysis_data %>%
+  group_by(region) %>%
+  summarise(
+    mean = mean(theta),
+    median = median(theta),
+    sd = sd(theta),
+    q025 = quantile(theta, 0.025),
+    q975 = quantile(theta, 0.975),
+    prob_positive = mean(theta > 0),
+    prob_clinically_important = mean(theta > 0.3),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(median))
+
+print(summary_table)
+
+# 3. Create advanced figure
+library(patchwork)
+
+p1 <- analysis_data %>%
+  ggplot(aes(y = reorder(region, theta), x = theta)) +
+  stat_halfeye(.width = c(0.66, 0.95), fill = "steelblue") +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  labs(
+    title = "A. Regional Treatment Effects",
+    x = "Effect Size",
+    y = NULL
+  )
+
+p2 <- analysis_data %>%
+  dplyr::ungroup() %>%
+  dplyr::select(mu, tau, .draw) %>%
+  dplyr::distinct() %>%
+  tidyr::pivot_longer(cols = c(mu, tau), names_to = "name", values_to = "value") %>%
+  ggplot(aes(x = value, fill = name)) +
+  stat_halfeye(alpha = 0.7) +
+  facet_wrap(~name, scales = "free", labeller = label_both) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "B. Hyperparameters",
+    x = "Value",
+    y = "Density"
+  ) +
+  theme(legend.position = "none")
+
+p3 <- analysis_data %>%
+  dplyr::ungroup() %>%
+  dplyr::select(.draw, region, theta) %>%
+  compare_levels(theta, by = region) %>%
+  ggplot(aes(y = region, x = theta)) +
+  stat_halfeye(fill = "coral", alpha = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red", alpha = 0.5) +
+  labs(
+    title = "C. Pairwise Regional Comparisons",
+    x = "Difference in Effect Size",
+    y = NULL
+  )
+
+p4 <- analysis_data %>%
+  dplyr::ungroup() %>%
+  dplyr::select(.draw, mu, tau) %>%
+  dplyr::distinct() %>%
+  ggplot(aes(x = mu, y = tau)) +
+  geom_hex(bins = 30) +
+  stat_ellipse(level = 0.95, color = "red", linewidth = 1) +
+  scale_fill_viridis_c() +
+  labs(
+    title = "D. Hyperparameter Correlation",
+    x = expression(mu~"(global mean)"),
+    y = expression(tau~"(heterogeneity)")
+  )
+
+(p1 + p2) / (p3 + p4) +
+  plot_annotation(
+    title = "Complete Bayesian Shrinkage Analysis",
+    subtitle = sprintf(
+      "Global effect: %.2f [%.2f, %.2f] | Heterogeneity (tau): %.2f",
+      median(analysis_data$mu),
+      quantile(analysis_data$mu, 0.025),
+      quantile(analysis_data$mu, 0.975),
+      median(analysis_data$tau)
+    )
+  )
+```
+
+## Advanced: Custom Analyses
+
+### Probability Statements
+```{r probability_statements, eval=TRUE}
+# Which region is best?
+analysis_data %>%
+  group_by(.draw) %>%
+  slice_max(theta, n = 1) %>%
+  ungroup() %>%
+  count(region) %>%
+  mutate(probability = n / sum(n)) %>%
+  arrange(desc(probability))
+
+# Alternative: probability each region is best
+analysis_data %>%
+  group_by(.draw) %>%
+  mutate(rank = rank(-theta)) %>%
+  ungroup() %>%
+  group_by(region) %>%
+  summarise(
+    prob_best = mean(rank == 1),
+    prob_top2 = mean(rank <= 2),
+    mean_rank = mean(rank),
+    .groups = "drop"
+  ) %>%
+  arrange(mean_rank)
+
+# Pairwise comparisons: Probability that South > North
+# Create wide format for comparisons
+theta_wide_for_contrasts <- analysis_data %>%
+  ungroup() %>%
+  dplyr::select(.draw, region, theta) %>%
+  tidyr::pivot_wider(names_from = region, values_from = theta)
+
+theta_wide_for_contrasts %>%
+  summarise(
+    prob_south_beats_north = mean(South > North),
+    prob_south_beats_north_by_02 = mean((South - North) > 0.2),
+    prob_central_beats_all = mean(
+      Central > North & Central > South & 
+      Central > East & Central > West
+    )
+  )
+```
+
+### Tail Probabilities
+```{r tail_probs, eval=TRUE}
+# Classify effects into categories
+theta_tidy %>%
+  group_by(region) %>%
+  summarise(
+    prob_harm = mean(.value < -0.1),
+    prob_null = mean(abs(.value) < 0.1),
+    prob_small_benefit = mean(.value > 0.1 & .value < 0.3),
+    prob_large_benefit = mean(.value > 0.3),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(prob_large_benefit))
+
+# Visualize classification
+theta_tidy %>%
+  mutate(
+    category = case_when(
+      .value < -0.1 ~ "Harm",
+      abs(.value) < 0.1 ~ "Null",
+      .value > 0.1 & .value < 0.3 ~ "Small Benefit",
+      .value > 0.3 ~ "Large Benefit"
+    )
+  ) %>%
+  count(region, category) %>%
+  group_by(region) %>%
+  mutate(probability = n / sum(n)) %>%
+  ggplot(aes(x = probability, y = region, fill = category)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(
+    values = c(
+      "Harm" = "red",
+      "Null" = "gray",
+      "Small Benefit" = "lightblue",
+      "Large Benefit" = "darkblue"
+    )
+  ) +
+  labs(
+    title = "Classification of Treatment Effects",
+    x = "Probability",
+    y = NULL,
+    fill = "Effect Category"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+### Ranking Analysis
+```{r ranking, eval=TRUE}
+# Compute ranks for each draw
+rank_data <- analysis_data %>%
+  group_by(.draw) %>%
+  mutate(rank = rank(-theta)) %>%
+  ungroup()
+
+# Summary statistics
+rank_summary <- rank_data %>%
+  group_by(region) %>%
+  summarise(
+    mean_rank = mean(rank),
+    median_rank = median(rank),
+    prob_rank1 = mean(rank == 1),
+    prob_rank2 = mean(rank == 2),
+    prob_top3 = mean(rank <= 3),
+    .groups = "drop"
+  ) %>%
+  arrange(mean_rank)
+
+print(rank_summary)
+
+# Visualize ranking distribution
+rank_data %>%
+  ggplot(aes(x = rank, y = reorder(region, -theta))) +
+  stat_dots(quantiles = 100) +
+  scale_x_continuous(breaks = 1:5) +
+  labs(
+    title = "Ranking Distribution",
+    subtitle = "Each dot represents 1% of posterior draws",
+    x = "Rank (1 = best, 5 = worst)",
+    y = NULL
+  )
+
+# Alternative: bar chart of ranking probabilities
+rank_data %>%
+  count(region, rank) %>%
+  group_by(region) %>%
+  mutate(probability = n / sum(n)) %>%
+  ggplot(aes(x = rank, y = probability, fill = region)) +
+  geom_col() +
+  facet_wrap(~region, ncol = 1) +
+  scale_x_continuous(breaks = 1:5) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Probability of Each Rank by Region",
+    x = "Rank (1 = best)",
+    y = "Probability"
+  ) +
+  theme(legend.position = "none")
+```
+
+
+
+## Further Reading
+
+- **posterior** package: https://mc-stan.org/posterior/
+- **bayesplot** package: https://mc-stan.org/bayesplot/
+- **tidybayes** package: http://mjskay.github.io/tidybayes/
+- **ggdist** package: https://mjskay.github.io/ggdist/

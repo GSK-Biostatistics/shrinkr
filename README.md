@@ -1,0 +1,396 @@
+<p align="center">
+  <img src="man/figures/shrinkr_hex_badge.png" width="250"/>
+</p>
+
+  [![R-CMD-check](https://github.com/gsk-tech/shrinkr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/gsk-tech/shrinkr/actions/workflows/R-CMD-check.yaml)
+  [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+
+**Modular Bayesian Hierarchical Shrinkage Models**
+
+`shrinkr` provides a flexible framework for *two-stage* Bayesian hierarchical modeling (BHM).  
+It lets you perform shrinkage of subgroup-specific posterior means from *any* Bayesian model in a modular way.
+
+---
+
+## Table of Contents
+- [Key Idea](#key-idea)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Key Features](#key-features)
+- [Why Use shrinkr?](#why-use-shrinkr)
+- [Performance Considerations](#performance-considerations)
+- [Documentation](#documentation)
+- [Mathematical Foundation](#mathematical-foundation)
+- [Citation](#citation)
+- [Getting Help](#getting-help)
+
+---
+
+## Key Idea
+
+1. **Stage 1:** Fit any Bayesian model (e.g., in Stan, NIMBLE, JAGS) *without shrinkage* using **flat/uninformative priors** on the parameters of interest.  
+   Extract posterior draws of subgroup-specific parameters ($\theta_g$, the treatment effect or estimand of interest for each subgroup $g = 1, \ldots G$).
+
+2. **Stage 2:** Approximate those subgroup posteriors with a **mixture of multivariate normals**,  
+   and then fit a **hierarchical model** across groups to borrow strength ("shrink").
+
+This modular approach lets you separate shrinkage from the first model—ideal for simulation pipelines, sensitivity checks, and Bayesian data borrowing.
+
+**When is this especially useful?** The mixture approximation makes `shrinkr` particularly valuable in situations where the typical two-stage approach assuming a normal likelihood for Stage 1 posteriors is unlikely to hold—for example, small subgroups, rare events, skewed or multimodal posteriors, or complex survival models. By capturing non-normality through the Gaussian mixture, the Stage 2 shrinkage better reflects the actual uncertainty from Stage 1.
+
+*This approach is mathematically justified through marginalization—see [Mathematical Foundation](#mathematical-foundation) for the full derivation.*
+
+---
+
+## Installation
+
+```r
+
+# On WARP or Domino
+install.packages("shrinkr") # installs current release
+
+
+# Install from gsk-tech repository
+# install.packages("devtools")
+devtools::install_github("gsk-tech/shrinkr") # installs developmental version
+
+# Install from internal repository or local source
+# install.packages("remotes")
+remotes::install_local("path/to/shrinkr")
+
+# Or install dependencies first
+install.packages(c("rstan", "distributional", "mclust", "posterior"))
+```
+
+**Note:** This package requires a working installation of `rstan`. See the [RStan Getting Started](https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started) guide for platform-specific installation instructions.
+
+**Troubleshooting:** If you encounter C++ compilation issues with rstan:   
+- **Windows:** Install [Rtools](https://cran.r-project.org/bin/windows/Rtools/)   
+- **Mac:** Ensure Xcode command line tools are installed (`xcode-select --install`)   
+- **Linux:** Install `r-base-dev` package   
+
+**Access Note:** This package is currently in internal development at GSK.
+
+---
+
+## Quick Start
+
+```r
+library(shrinkr)
+library(distributional)
+
+# Step 1: Prepare posterior samples from your Stage 1 model
+# Here we simulate posterior draws for 4 subgroups as an example.
+# theta_g represents the subgroup-specific treatment effect for group g.
+# In practice, these come from Stan, NIMBLE, JAGS, brms, etc.
+# IMPORTANT: Use flat/uninformative priors on theta in Stage 1
+set.seed(1104)
+samples <- list(
+  group1 = matrix(rnorm(2000, mean = 0.0, sd = 0.5), ncol = 1),
+  group2 = matrix(rnorm(2000, mean = 0.5, sd = 0.5), ncol = 1),
+  group3 = matrix(rnorm(2000, mean = 1.0, sd = 0.5), ncol = 1),
+  group4 = matrix(rnorm(2000, mean = 0.3, sd = 0.6), ncol = 1)
+)
+
+# Step 2: Fit mixture approximation (up to K_max = 3 Gaussian components)
+# K_max controls the maximum number of mixture components. mclust selects
+# the best K (<= K_max) via BIC. Default is 5; 3 is often sufficient.
+mix <- fit_mixture(samples, K_max = 3, verbose = TRUE)
+
+# Step 3: Apply hierarchical shrinkage with custom priors
+priors <- list(
+  mu = dist_normal(0, 5),
+  tau = dist_truncated(dist_student_t(3, 0, 1), lower = 0)
+)
+
+# Check what the priors imply about pairwise differences
+prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 2000)
+pw <- prior_pairwise_differences(prior_pred)
+plot(pw)  # density of |theta_i - theta_j|
+
+fit <- shrink(
+  mixture = mix,
+  hierarchical_priors = priors,
+  chains = 4,
+  iter = 2000,
+  warmup = 1000
+)
+
+# Step 4: Examine results
+summary(fit)
+plot(fit)
+```
+
+---
+
+## Key Features
+
+### Flexible Prior Specification
+
+`shrinkr` supports a wide range of priors through the `distributional` package:
+
+- **Standard families:** Normal, Student-t, Cauchy, Lognormal
+- **Heavy-tailed:** Inverse-Gamma, Half-Cauchy, Half-t
+- **Uniform priors** for bounded heterogeneity
+- **Truncated distributions** for constraining parameter ranges on both mu and tau
+
+```r
+# Examples of different tau priors
+priors <- list(
+  mu = dist_normal(0, 5),
+  tau = dist_truncated(dist_normal(0, 2.5), lower = 0)  # Half-normal
+)
+
+# Or with half-t for heavier tails
+priors <- list(
+  mu = dist_normal(0, 5),
+  tau = dist_truncated(dist_student_t(3, 0, 1), lower = 0)  # Half-t
+)
+
+# Truncated mu (e.g., constrain global mean to be positive)
+priors <- list(
+  mu = dist_truncated(dist_normal(0, 5), lower = 0),
+  tau = dist_truncated(dist_normal(0, 2.5), lower = 0)
+)
+
+# Spike-and-slab prior on tau for testing homogeneity
+priors <- list(
+  mu = dist_normal(0, 5),
+  tau = dist_truncated(prior_spike_slab(spike_prob = 0.5, spike_scale = 0.01, slab_scale = 1), lower = 0)
+)
+```
+
+### Two Input Methods
+
+1. **Full posterior samples** (recommended): Provides mixture approximation that captures posterior uncertainty
+
+```r
+fit <- shrink(mixture = mix, hierarchical_priors = priors)
+```
+
+2. **Point estimates + variance**: When full posteriors are unavailable
+
+```r
+fit <- shrink(
+  mle = c(0.5, 1.2, -0.3, 0.8),
+  var_matrix = c(0.1, 0.15, 0.12, 0.09),  # Vector assumes independent components
+  #can also be variance-covariance matrix
+  hierarchical_priors = priors
+)
+```
+
+### Prior Predictive Checks
+
+Before fitting, check the implications of your prior choices:
+
+```r
+# Check prior implications
+prior_pred <- sample_prior_predictive(
+  hierarchical_priors = priors,
+  n_groups = 4,
+  n_draws = 1000
+)
+
+# Visualize hyperparameter and theta distributions
+plot(prior_pred)
+
+# Check implied spread
+summary(prior_pred)
+
+# implied_range: for each draw, this is max(theta) - min(theta) across groups.
+# It tells you how spread out the subgroup effects are under your prior.
+median(prior_pred$implied_range)  # Typical range across groups
+quantile(prior_pred$implied_range, c(0.025, 0.975))  # 95% CI
+
+# Prior predictive pairwise differences: |theta_i - theta_j|
+# This is recommended for calibrating priors — see whether your prior
+# implies plausible subgroup differences on the clinical scale.
+pw <- prior_pairwise_differences(prior_pred)
+print(pw)
+plot(pw)                      # Pooled density
+plot(pw, by_pair = TRUE)      # Violin per pair
+```
+
+### Diagnostics and Visualization
+
+```r
+# Check model fit
+summary(fit)
+fit$diagnostics
+
+# Visualize shrinkage
+plot(fit)
+
+# Check mixture approximation quality
+plot(mix, draws=samples, type="density")
+plot(mix, draws=samples, type="qq")
+
+# Extract specific parameters
+extract_mu_tau(fit)
+summarize_mu_tau(fit)
+
+# Standard rstan diagnostics work directly on fit$fit:
+# rstan::traceplot(fit$fit, pars = c("mu", "tau"))
+# rstan::stan_rhat(fit$fit)
+# bayesplot::mcmc_trace(fit$fit, pars = c("mu", "tau"))
+```
+
+---
+
+
+## Why Use shrinkr?
+
+### Modularity
+- Fit complex Stage 1 models once, then explore different shrinkage approaches
+- No need to refit expensive MCMC chains for sensitivity analyses
+- Separates scientific model specification from statistical regularization
+
+### Flexibility
+- Works with any Bayesian software (Stan, NIMBLE, JAGS, etc.)
+- Supports diverse prior families and custom priors
+- Handles both univariate and multivariate parameters
+
+### Efficiency
+- Reuses posterior samples for multiple shrinkage scenarios
+- Precompiled Stan models for fast fitting
+- Mixture approximation enables efficient Stage 2 sampling
+
+### Use Cases
+- **Meta-analysis:** Shrink study-specific effects with flexible heterogeneity priors
+- **Clinical trials:** Borrow information across subgroups or historical controls
+- **Simulation studies:** Compare shrinkage methods systematically
+- **Federated learning:** Combine insights from distributed data sources
+
+---
+
+
+## Performance Considerations
+
+- **Stage 1:** Can be computationally expensive (full Bayesian model fitting)
+- **Stage 2:** Fast (typically < 1 minute for 4-5 groups with 2000 iterations)
+- **Mixture fitting:** Time scales with number of groups and posterior samples
+- **Memory:** Storing full posterior samples requires more memory than point estimates
+
+---
+
+## Documentation
+
+- `vignette("getting_started")`: Basic workflow and examples
+- `vignette("tidy_bayesian_workflow")`: Tidy workflows with tidybayes, posterior, and bayesplot
+- `vignette("brms_integration")`: Working with brms models (survival analysis example)
+- `vignette("federated_learning")`: Using shrinkr in the context of federated learning
+
+---
+
+## Mathematical Foundation
+
+The two-stage approach is mathematically justified through marginalization. The key insight is that **the Stage 1 prior on θ must be uninformative (flat/improper)** for the equivalence to hold.
+
+### Full One-Stage Model
+
+In a standard hierarchical model, the joint posterior is:
+
+$$\pi(\theta, \mu, \tau, \psi | D) \propto L(\theta, \psi | D) \cdot \pi(\theta | \mu, \tau) \cdot \pi(\mu) \cdot \pi(\tau) \cdot \pi(\psi)$$
+
+where:    
+- $\theta$ = subgroup-specific parameters of interest  
+- $\mu, \tau$ = hierarchical mean and variance parameters     
+- $\psi$ = nuisance parameters from the likelihood     
+- $D$ = observed data
+
+Marginalizing out $\psi$:
+
+$$\pi(\theta, \mu, \tau | D) \propto \left[\int L(\theta, \psi | D) \pi(\psi) d\psi \right] \cdot \pi(\theta | \mu, \tau) \cdot \pi(\mu) \cdot \pi(\tau)$$
+
+### The Two-Stage Equivalence
+
+**Stage 1 uses a flat/uninformative prior on θ:**
+
+$$\pi_1(\theta | D) \propto \int L(\theta, \psi | D) \pi(\psi) d\psi$$
+
+This is the posterior when $\pi(\theta) \propto 1$ (flat prior). Notice this matches the bracketed term above.
+
+**Stage 2 treats Stage 1 posterior as "data":**
+
+$$\pi(\theta, \mu, \tau | D) \propto \pi_1(\theta | D) \cdot \pi(\theta | \mu, \tau) \cdot \pi(\mu) \cdot \pi(\tau)$$
+
+### Why This Works
+
+The equivalence holds because:
+
+1. **Stage 1 prior is flat:** $\pi(\theta) \propto 1$, so it doesn't appear in the Stage 1 posterior
+2. **All shrinkage comes from Stage 2:** The hierarchical prior $\pi(\theta | \mu, \tau)$ is applied in Stage 2 only
+3. **No "double priors":** We don't have both $\pi_1(\theta)$ and $\pi(\theta | \mu, \tau)$ competing
+
+### Important Implementation Details
+
+**Always use flat/weakly informative priors in Stage 1:**
+
+```r
+# Stan: Don't specify a prior (defaults to improper uniform)
+parameters {
+  vector[n_groups] theta;  // No prior = flat prior
+}
+
+# JAGS: Use very wide prior
+theta[g] ~ dnorm(0, 1e-6)  # Precision = 1e-6 means very wide
+
+# NIMBLE: Similar to JAGS
+theta[g] ~ dnorm(0, sd = 1000)
+```
+
+**Apply hierarchical structure in Stage 2:**
+
+```r
+priors <- list(
+  mu = dist_normal(0, 5),      # This is the ONLY prior on location
+  tau = dist_truncated(dist_student_t(3, 0, 1), lower = 0)
+)
+
+fit <- shrink(mixture = mix, hierarchical_priors = priors)
+```
+
+The `shrinkr` package implements this by approximating $\pi(\theta | D)$ with a mixture of normals in Stage 2, enabling efficient exploration of different hierarchical priors without refitting the Stage 1 model.
+
+### Why a Mixture of Normals?
+
+The Stage 1 posterior $\pi_1(\theta | D)$ can be arbitrarily complex — skewed, multimodal, heavy-tailed — depending on the model and data. We need a tractable density that Stan can evaluate efficiently in its log-likelihood. A mixture of multivariate normals is the natural choice because:
+
+1. **Universal approximation:** Any continuous density can be approximated to arbitrary precision by a finite mixture of normals (given enough components). This is a classical result in density estimation.
+2. **Closed-form log-density:** Each component contributes a `multi_normal_cholesky_lpdf` term that Stan evaluates analytically — no numerical integration needed.
+3. **Automatic model selection:** `mclust` selects the number of components $K$ and covariance structure via BIC, so the user does not need to specify this manually. The `K_max` argument sets an upper bound (default 5); in practice, 2-5 components suffice for most posterior shapes.
+4. **Captures non-normality:** Unlike the point-estimate-plus-variance approach (which implicitly assumes a normal posterior), the mixture path faithfully represents skewness, heavy tails, and multimodality from Stage 1.
+
+**Should I assess sensitivity to K_max?** In general, the BIC-selected $K$ is stable once $K_{\text{max}}$ is large enough. You can check this by comparing `fit_mixture(..., K_max = 3)` vs `K_max = 5` vs `K_max = 8` and inspecting the QQ plots. If the selected $K$ and the QQ diagnostics are unchanged, the result is robust. The function `fit_mixture()` returns the selected $K$ and BIC for comparison.
+
+---
+
+## Citation
+
+If you use `shrinkr` in your work, please cite:
+
+```
+Maronge, J. M. (2026). shrinkr: Modular Bayesian Hierarchical Shrinkage Models. 
+R package version 0.4.3.
+```
+
+---
+
+## Getting Help
+
+For questions and issues:   
+- Open an issue on the internal repository.  
+- Contact the package maintainer: jacob.m.maronge@gsk.com.  
+
+---
+
+## License
+
+This package is licensed under the GNU General Public License v3.0 or later
+(GPL-3.0-or-later). You are free to use, modify, and redistribute it under
+the terms of the GPL. See the [LICENSE](LICENSE) file for the full text, or
+visit <https://www.gnu.org/licenses/gpl-3.0.html>.
+
+Portions of this package are derived from templates provided by the
+[rstantools](https://mc-stan.org/rstantools/) project (Copyright © Trustees
+of Columbia University), also licensed under GPL-3.
