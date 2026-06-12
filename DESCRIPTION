@@ -36,8 +36,8 @@ LinkingTo: BH (>= 1.66.0), Rcpp (>= 0.12.0), RcppEigen (>= 0.3.3.3.0),
 SystemRequirements: GNU make, C++17 compiler
 Roxygen: list(markdown = TRUE)
 Biarch: true
-URL: https://github.com/gsk-tech/shrinkr
-BugReports: https://github.com/gsk-tech/shrinkr/issues
+URL: https://gsk-biostatistics.github.io/shrinkr/
+BugReports: https://github.com/GSK-Biostatistics/shrinkr/issues
 VignetteBuilder: knitr
 NeedsCompilation: yes
 Packaged: 2026-04-09 16:37:19 UTC; jmm04498

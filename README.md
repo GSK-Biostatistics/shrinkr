@@ -1,14 +1,15 @@
-<p align="center">
-  <img src="man/figures/shrinkr_hex_badge.png" width="250"/>
-</p>
+# shrinkr <a href='https://gsk-biostatistics.github.io/shrinkr/'><img src="man/figures/shrinkr_hex_badge.png" align="right" alt="shrinkr logo" style="height:139px;"/></a>
 
-  [![R-CMD-check](https://github.com/gsk-tech/shrinkr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/gsk-tech/shrinkr/actions/workflows/R-CMD-check.yaml)
-  [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+## Modular Bayesian Hierarchical Shrinkage Models
 
-**Modular Bayesian Hierarchical Shrinkage Models**
+<!-- badges: start -->
 
-`shrinkr` provides a flexible framework for *two-stage* Bayesian hierarchical modeling (BHM).  
-It lets you perform shrinkage of subgroup-specific posterior means from *any* Bayesian model in a modular way.
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![R-CMD-check](https://github.com/GSK-Biostatistics/shrinkr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/GSK-Biostatistics/shrinkr/actions/workflows/R-CMD-check.yaml)
+
+<!-- badges: end -->
+
+`shrinkr` provides a flexible framework for two-stage Bayesian hierarchical modeling (BHM). By separating model fitting from hierarchical shrinkage, it allows subgroup-specific estimates from virtually any Bayesian model to be incorporated into a common borrowing framework.
 
 ---
 
@@ -267,7 +268,7 @@ summarize_mu_tau(fit)
 ## Performance Considerations
 
 - **Stage 1:** Can be computationally expensive (full Bayesian model fitting)
-- **Stage 2:** Fast (typically < 1 minute for 4-5 groups with 2000 iterations)
+- **Stage 2:** Fast (typically < 1 second for 4-5 groups with 2000 iterations)
 - **Mixture fitting:** Time scales with number of groups and posterior samples
 - **Memory:** Storing full posterior samples requires more memory than point estimates
 
