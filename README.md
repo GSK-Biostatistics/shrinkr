@@ -47,13 +47,13 @@ This modular approach lets you separate shrinkage from the first model—ideal f
 
 ```r
 
-# On WARP or Domino
+# On CRAN
 install.packages("shrinkr") # installs current release
 
 
-# Install from gsk-tech repository
+# Install from GSK-Biostatistics repository
 # install.packages("devtools")
-devtools::install_github("gsk-tech/shrinkr") # installs developmental version
+devtools::install_github("GSK-Biostatistics/shrinkr") # installs developmental version
 
 # Install from internal repository or local source
 # install.packages("remotes")
