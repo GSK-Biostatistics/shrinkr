@@ -25,7 +25,7 @@ At least \strong{two} groups/variables are required for hierarchical shrinkage.
 Non-numeric columns in data frames are automatically dropped. Rows with
 missing values are removed before fitting.}
 
-\item{K_max}{Integer (≥ 1). Maximum number of mixture components to consider
+\item{K_max}{Integer \eqn{(\ge 1)}. Maximum number of mixture components to consider
 during model selection by BIC. Internally capped at \code{n - 1} for stability.}
 
 \item{verbose}{Logical. If \code{TRUE}, progress and diagnostic messages are printed.}

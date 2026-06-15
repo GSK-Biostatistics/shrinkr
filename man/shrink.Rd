@@ -127,7 +127,7 @@ spike-and-slab), and truncated versions
 }
 }
 
-\subsection{Common Prior Choices for τ}{
+\subsection{Common Prior Choices for \eqn{\tau}}{
 
 \itemize{
 \item Half-Normal: \code{dist_truncated(dist_normal(0, s), lower = 0)} - Weakly informative
