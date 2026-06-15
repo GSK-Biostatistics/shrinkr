@@ -892,7 +892,7 @@ sessionInfo()
 #>  [7] dplyr_1.2.1          purrr_1.2.2          readr_2.2.0         
 #> [10] tidyr_1.3.2          tibble_3.3.1         ggplot2_4.0.3       
 #> [13] tidyverse_2.0.0      distributional_0.7.1 tidybayes_3.0.7     
-#> [16] brms_2.23.0          Rcpp_1.1.1-1.1       shrinkr_0.4.3       
+#> [16] brms_2.23.0          Rcpp_1.1.1-1.1       shrinkr_0.4.4       
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] tidyselect_1.2.1      svUnit_1.0.8          farver_2.1.2         

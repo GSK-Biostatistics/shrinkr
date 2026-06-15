@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">shrinkr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,6 +36,7 @@
 <li><a class="dropdown-item" href="../articles/brms_integration.html">Survival Analysis with brms and shrinkr</a></li>
     <li><a class="dropdown-item" href="../articles/federated_learning.html">Federated Learning with shrinkr</a></li>
     <li><a class="dropdown-item" href="../articles/getting_started.html">Getting Started with shrinkr</a></li>
+    <li><a class="dropdown-item" href="../articles/map_prior_with_beastt.html">Meta-Analytic-Predictive (MAP) Priors with shrinkr and beastt</a></li>
     <li><a class="dropdown-item" href="../articles/tidy_bayesian_workflow.html">Working with shrinkr in the Tidy Bayesian Ecosystem</a></li>
   </ul>
 </li>
@@ -63,7 +64,7 @@
                         <h4 data-toc-skip class="author">Jacob M.
 Maronge</h4>
             
-            <h4 data-toc-skip class="date">2026-06-12</h4>
+            <h4 data-toc-skip class="date">2026-06-15</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/GSK-Biostatistics/shrinkr/blob/main/vignettes/federated_learning.Rmd" class="external-link"><code>vignettes/federated_learning.Rmd</code></a></small>
       <div class="d-none name"><code>federated_learning.Rmd</code></div>
@@ -85,11 +86,11 @@ when:</p>
 </ul>
 <p><strong>shrinkr’s two-stage architecture naturally enables federated
 learning:</strong></p>
-<pre><code>Site 1: Stage 1 model → Posterior samples (or summaries)
-Site 2: Stage 1 model → Posterior samples (or summaries)  } → Central
-Site 3: Stage 1 model → Posterior samples (or summaries)  }   Coordinator
+<pre><code>Site 1: Stage 1 model -&gt; Posterior samples (or summaries)
+Site 2: Stage 1 model -&gt; Posterior samples (or summaries)  } -&gt; Central
+Site 3: Stage 1 model -&gt; Posterior samples (or summaries)  }   Coordinator
    ...                                                     }   applies
-Site K: Stage 1 model → Posterior samples (or summaries)  }   Stage 2 shrinkage</code></pre>
+Site K: Stage 1 model -&gt; Posterior samples (or summaries)  }   Stage 2 shrinkage</code></pre>
 <p><strong>Data never leaves the sites</strong>, only statistical
 summaries are shared.</p>
 <blockquote>
@@ -106,7 +107,8 @@ which requires:</p>
 </ul>
 <p><strong>Always verify</strong> posterior normality before using
 summary statistics! When in doubt, share full posteriors or send mixture
-approximations (e.g. send <code><a href="../reference/fit_mixture.html">fit_mixture()</a></code> output).</p>
+approximations, for example by sending <code><a href="../reference/fit_mixture.html">fit_mixture()</a></code>
+output.</p>
 </blockquote>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://gsk-biostatistics.github.io/shrinkr/" class="external-link">shrinkr</a></span><span class="op">)</span></span>
@@ -120,10 +122,12 @@ approximations (e.g. send <code><a href="../reference/fit_mixture.html">fit_mix
 <h2 id="use-case-multi-hospital-mortality-prediction">Use Case: Multi-Hospital Mortality Prediction<a class="anchor" aria-label="anchor" href="#use-case-multi-hospital-mortality-prediction"></a>
 </h2>
 <p>We’ll analyze a federated clinical prediction model across 6
-hospitals. Each hospital:<br>
-- Has developed a logistic regression model for 30-day mortality<br>
-- Cannot share patient-level data (HIPAA compliance)<br>
-- Wants to improve predictions by borrowing strength across sites</p>
+hospitals. Each hospital:</p>
+<ul>
+<li>Has developed a logistic regression model for 30-day mortality</li>
+<li>Cannot share patient-level data (HIPAA compliance)</li>
+<li>Wants to improve predictions by borrowing strength across sites</li>
+</ul>
 <p><strong>Goal</strong>: Combine site-specific models while respecting
 data governance constraints.</p>
 </div>
@@ -156,11 +160,24 @@ data governance constraints.</p>
 <h3 id="the-clinical-model">The Clinical Model<a class="anchor" aria-label="anchor" href="#the-clinical-model"></a>
 </h3>
 <p>Each site fits:</p>
-<pre><code>logit(mortality) = β₀ + β₁(age) + β₂(severity_score) + β₃(comorbidities)</code></pre>
-<p><strong>Parameter of interest</strong>: <code>β₁</code> (age effect
-on mortality)<br>
-- We want site-specific estimates<br>
-- But want to borrow strength across the network</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">logit</mtext><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="normal">mortality</mtext><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msub><mi>β</mi><mn>0</mn></msub><mo>+</mo><msub><mi>β</mi><mn>1</mn></msub><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="normal">age</mtext><mo stretchy="false" form="postfix">)</mo><mo>+</mo><msub><mi>β</mi><mn>2</mn></msub><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="normal">severity_score</mtext><mo stretchy="false" form="postfix">)</mo><mo>+</mo><msub><mi>β</mi><mn>3</mn></msub><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="normal">comorbidities</mtext><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">
+\text{logit}(\text{mortality})
+=
+\beta_0
++
+\beta_1(\text{age})
++
+\beta_2(\text{severity\_score})
++
+\beta_3(\text{comorbidities})
+</annotation></semantics></math></p>
+<p><strong>Parameter of interest</strong>:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\beta_1</annotation></semantics></math>
+(age effect on mortality)</p>
+<ul>
+<li>We want site-specific estimates</li>
+<li>But want to borrow strength across the network</li>
+</ul>
 </div>
 </div>
 <div class="section level2">
@@ -171,7 +188,7 @@ on mortality)<br>
 </h3>
 <p>In practice, this happens behind each site’s firewall. We
 simulate:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1104</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># True network-level parameters (unknown in practice)</span></span>
@@ -186,7 +203,7 @@ simulate:</p>
 <span><span class="va">site_sample_sizes</span> <span class="op">&lt;-</span> <span class="va">hospitals</span><span class="op">$</span><span class="va">n_patients</span></span>
 <span></span>
 <span><span class="kw">for</span><span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="co"># Posterior for age coefficient (β₁)</span></span>
+<span>  <span class="co"># Posterior for age coefficient beta_1</span></span>
 <span>  <span class="co"># SE inversely proportional to sqrt(sample size)</span></span>
 <span>  <span class="va">se_i</span> <span class="op">&lt;-</span> <span class="fl">0.02</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">800</span> <span class="op">/</span> <span class="va">site_sample_sizes</span><span class="op">[</span><span class="va">i</span><span class="op">]</span><span class="op">)</span></span>
 <span>  </span>
@@ -223,10 +240,13 @@ simulate:</p>
 <span><span class="co">#&gt; Community Hospital   -0.048948992 0.07050247</span></span>
 <span><span class="co">#&gt; Veterans Affairs      0.033495692 0.10217766</span></span>
 <span><span class="co">#&gt; Children's Specialty  0.009787133 0.08380442</span></span></code></pre></div>
-<p><strong>Key observations:</strong><br>
-- Smaller sites (e.g., Community Hospital) have wider intervals<br>
-- Point estimates vary across sites (0.039 to 0.063)<br>
-- Rural site with fewer patients is least precise</p>
+<p><strong>Key observations:</strong></p>
+<ul>
+<li>Smaller sites, for example Community Hospital, have wider
+intervals</li>
+<li>Point estimates vary across sites</li>
+<li>The rural site with fewer patients is least precise</li>
+</ul>
 </div>
 <div class="section level3">
 <h3 id="step-2-sites-share-summaries-with-coordinator">Step 2: Sites Share Summaries with Coordinator<a class="anchor" aria-label="anchor" href="#step-2-sites-share-summaries-with-coordinator"></a>
@@ -235,7 +255,7 @@ simulate:</p>
 <div class="section level4">
 <h4 id="path-a-share-full-posteriors-if-permitted">Path A: Share Full Posteriors (if permitted)<a class="anchor" aria-label="anchor" href="#path-a-share-full-posteriors-if-permitted"></a>
 </h4>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Sites share posterior samples (4000 draws each)</span></span>
 <span><span class="co"># This is more informative but requires more data transfer</span></span>
 <span></span>
@@ -250,7 +270,7 @@ simulate:</p>
 <div class="section level4">
 <h4 id="path-b-share-only-summary-statistics-requires-assumptions">Path B: Share Only Summary Statistics (requires assumptions)<a class="anchor" aria-label="anchor" href="#path-b-share-only-summary-statistics-requires-assumptions"></a>
 </h4>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Sites share only mean and SE</span></span>
 <span><span class="co"># Minimal data transfer, maximum privacy</span></span>
 <span><span class="co"># BUT: Only valid if posteriors are approximately normal!</span></span>
@@ -276,26 +296,28 @@ simulate:</p>
 <span><span class="co">#&gt; Community Hospital     Community Hospital    0.01077674  0.03047231</span></span>
 <span><span class="co">#&gt; Veterans Affairs         Veterans Affairs    0.06783668  0.01752091</span></span>
 <span><span class="co">#&gt; Children's Specialty Children's Specialty    0.04679578  0.01888196</span></span></code></pre></div>
-<p><strong>Privacy consideration</strong>: Path B shares 190× less data
-than Path A!</p>
+<p><strong>Privacy consideration</strong>: Path B shares much less data
+than Path A.</p>
 <p><strong>Critical assumption</strong>: Path B relies on the
-<strong>Bayesian Central Limit Theorem</strong>:<br>
-- Large sample sizes at each site<br>
-- Parameters not near boundaries<br>
-- Well-behaved likelihoods<br>
-- Regular posterior geometry</p>
+<strong>Bayesian Central Limit Theorem</strong>:</p>
+<ul>
+<li>Large sample sizes at each site</li>
+<li>Parameters not near boundaries</li>
+<li>Well-behaved likelihoods</li>
+<li>Regular posterior geometry</li>
+</ul>
 </div>
 </div>
 </div>
 <div class="section level2">
 <h2 id="central-coordinator-stage-2-shrinkage">Central Coordinator: Stage 2 Shrinkage<a class="anchor" aria-label="anchor" href="#central-coordinator-stage-2-shrinkage"></a>
 </h2>
-<p>The coordinator (e.g., a coordinating center or trusted third party)
-now applies hierarchical shrinkage.</p>
+<p>The coordinator, for example a coordinating center or trusted third
+party, now applies hierarchical shrinkage.</p>
 <div class="section level3">
 <h3 id="path-a-using-full-posteriors">Path A: Using Full Posteriors<a class="anchor" aria-label="anchor" href="#path-a-using-full-posteriors"></a>
 </h3>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Fit mixture approximation</span></span>
 <span><span class="va">mix</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_mixture.html">fit_mixture</a></span><span class="op">(</span></span>
 <span>  samples <span class="op">=</span> <span class="va">site_posteriors</span>,</span>
@@ -309,9 +331,9 @@ now applies hierarchical shrinkage.</p>
 <div class="section level4">
 <h4 id="specify-network-level-priors">Specify Network-Level Priors<a class="anchor" aria-label="anchor" href="#specify-network-level-priors"></a>
 </h4>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Based on clinical knowledge:</span></span>
-<span><span class="co"># - Age effect should be positive but moderate (β₁ ≈ 0.02-0.08)</span></span>
+<span><span class="co"># - Age effect should be positive but moderate</span></span>
 <span><span class="co"># - Some heterogeneity expected across hospital types</span></span>
 <span></span>
 <span><span class="va">hierarchical_priors</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -332,7 +354,7 @@ now applies hierarchical shrinkage.</p>
 <div class="section level4">
 <h4 id="fit-hierarchical-model">Fit Hierarchical Model<a class="anchor" aria-label="anchor" href="#fit-hierarchical-model"></a>
 </h4>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_full_post</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/shrink.html">shrink</a></span><span class="op">(</span></span>
 <span>  mixture <span class="op">=</span> <span class="va">mix</span>,</span>
 <span>  hierarchical_priors <span class="op">=</span> <span class="va">hierarchical_priors</span>,</span>
@@ -341,31 +363,31 @@ now applies hierarchical shrinkage.</p>
 <span>  warmup <span class="op">=</span> <span class="fl">1000</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">123</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit_full_post</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 7</span></span></span>
 <span><span class="co">#&gt;   variable         mean       sd         q2.5       q50    q97.5  rhat</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>           <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> mu          0.049<span style="text-decoration: underline;">6</span>    0.007<span style="text-decoration: underline;">17</span>  0.035<span style="text-decoration: underline;">1</span>       0.049<span style="text-decoration: underline;">8</span>    0.063<span style="text-decoration: underline;">6</span>    1.00</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> tau         0.006<span style="text-decoration: underline;">24</span>   0.005<span style="text-decoration: underline;">20</span>  0.000<span style="text-decoration: underline;">263</span>     0.004<span style="text-decoration: underline;">93</span>   0.019<span style="text-decoration: underline;">5</span>    1.00</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> tau_squared 0.000<span style="text-decoration: underline;">066</span>0 0.000<span style="text-decoration: underline;">119</span> 0.000<span style="text-decoration: underline;">000</span>068<span style="text-decoration: underline;">9</span> 0.000<span style="text-decoration: underline;">024</span>3 0.000<span style="text-decoration: underline;">381</span>  1.00</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> mu          0.049<span style="text-decoration: underline;">7</span>    0.007<span style="text-decoration: underline;">31</span>  0.034<span style="text-decoration: underline;">7</span>       0.049<span style="text-decoration: underline;">8</span>    0.064<span style="text-decoration: underline;">1</span>    1.00</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> tau         0.006<span style="text-decoration: underline;">32</span>   0.005<span style="text-decoration: underline;">30</span>  0.000<span style="text-decoration: underline;">276</span>     0.004<span style="text-decoration: underline;">97</span>   0.019<span style="text-decoration: underline;">5</span>    1.00</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> tau_squared 0.000<span style="text-decoration: underline;">068</span>0 0.000<span style="text-decoration: underline;">119</span> 0.000<span style="text-decoration: underline;">000</span>076<span style="text-decoration: underline;">4</span> 0.000<span style="text-decoration: underline;">024</span>7 0.000<span style="text-decoration: underline;">379</span>  1.00</span></span>
 <span></span>
 <span><span class="co"># Network-level estimates</span></span>
 <span><span class="va">mu_tau_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_mu_tau.html">extract_mu_tau</a></span><span class="op">(</span><span class="va">fit_full_post</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nNetwork-level age effect (μ):\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nNetwork-level age effect (mu):\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Network-level age effect (μ):</span></span>
+<span><span class="co">#&gt; Network-level age effect (mu):</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  Posterior mean:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">mu</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   Posterior mean: 0.0496</span></span>
+<span><span class="co">#&gt;   Posterior mean: 0.0497</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  95% CI: ["</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">mu</span>, <span class="fl">0.025</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">","</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">mu</span>, <span class="fl">0.975</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"]\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   95% CI: [ 0.0351 , 0.0636 ]</span></span>
+<span><span class="co">#&gt;   95% CI: [ 0.0347 , 0.0641 ]</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nBetween-site heterogeneity (τ):\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nBetween-site heterogeneity (tau):\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Between-site heterogeneity (τ):</span></span>
+<span><span class="co">#&gt; Between-site heterogeneity (tau):</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  Posterior mean:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">tau</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   Posterior mean: 0.0062</span></span>
+<span><span class="co">#&gt;   Posterior mean: 0.0063</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  95% CI: ["</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">tau</span>, <span class="fl">0.025</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">","</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">tau</span>, <span class="fl">0.975</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"]\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   95% CI: [ 3e-04 , 0.0195 ]</span></span></code></pre></div>
@@ -375,11 +397,11 @@ now applies hierarchical shrinkage.</p>
 <h3 id="path-b-using-only-summary-statistics">Path B: Using Only Summary Statistics<a class="anchor" aria-label="anchor" href="#path-b-using-only-summary-statistics"></a>
 </h3>
 <p><strong>Before using summary statistics</strong>, we must verify
-posteriors are approximately normal!</p>
+posteriors are approximately normal.</p>
 <div class="section level4">
 <h4 id="step-1-check-normality-assumption">Step 1: Check Normality Assumption<a class="anchor" aria-label="anchor" href="#step-1-check-normality-assumption"></a>
 </h4>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Visual checks for approximate normality</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="kw">for</span><span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">)</span> <span class="op">{</span></span>
@@ -391,20 +413,18 @@ posteriors are approximately normal!</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/stats/qqnorm.html" class="external-link">qqline</a></span><span class="op">(</span><span class="va">samples_i</span>, col <span class="op">=</span> <span class="st">"red"</span>, lwd <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 <p><img src="federated_learning_files/figure-html/check_normality-1.png" class="r-plt" alt="" width="960"></p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Quantitative checks</span></span>
 <span><span class="va">normality_checks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  site <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">site_posteriors</span><span class="op">)</span>,</span>
 <span>  skewness <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">site_posteriors</span>, <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">n</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span>    <span class="va">m3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="op">(</span><span class="va">x</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span><span class="op">^</span><span class="fl">3</span><span class="op">)</span></span>
 <span>    <span class="va">s3</span> <span class="op">&lt;-</span> <span class="fu">sd</span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">^</span><span class="fl">3</span></span>
 <span>    <span class="va">m3</span> <span class="op">/</span> <span class="va">s3</span></span>
 <span>  <span class="op">}</span><span class="op">)</span>,</span>
 <span>  kurtosis <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">site_posteriors</span>, <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">n</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span>    <span class="va">m4</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="op">(</span><span class="va">x</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span><span class="op">^</span><span class="fl">4</span><span class="op">)</span></span>
 <span>    <span class="va">s4</span> <span class="op">&lt;-</span> <span class="fu">sd</span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">^</span><span class="fl">4</span></span>
 <span>    <span class="va">m4</span> <span class="op">/</span> <span class="va">s4</span> <span class="op">-</span> <span class="fl">3</span>  <span class="co"># Excess kurtosis</span></span>
@@ -431,17 +451,19 @@ posteriors are approximately normal!</p>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/all.html" class="external-link">all</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">normality_checks</span><span class="op">$</span><span class="va">skewness</span><span class="op">)</span> <span class="op">&lt;</span> <span class="fl">0.5</span> <span class="op">&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">normality_checks</span><span class="op">$</span><span class="va">kurtosis</span><span class="op">)</span> <span class="op">&lt;</span> <span class="fl">1.0</span><span class="op">)</span>,</span>
 <span>    <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   All sites pass: TRUE</span></span></code></pre></div>
-<p><strong>Decision rule</strong>:<br>
-- If posteriors look approximately normal → Path B is likely valid<br>
-- If posteriors are skewed/heavy-tailed → Use Path A (mixture)<br>
-- If unsure → Use Path A (safer choice)</p>
+<p><strong>Decision rule</strong>:</p>
+<ul>
+<li>If posteriors look approximately normal, Path B is likely valid</li>
+<li>If posteriors are skewed/heavy-tailed, use Path A</li>
+<li>If unsure, use Path A</li>
+</ul>
 </div>
 <div class="section level4">
 <h4 id="when-clt-fails-a-counter-example">When CLT Fails: A Counter-Example<a class="anchor" aria-label="anchor" href="#when-clt-fails-a-counter-example"></a>
 </h4>
-<p>To illustrate why normality matters, consider a scenario where we’re
+<p>To illustrate why normality matters, consider a scenario where we are
 estimating a <strong>variance parameter</strong>:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Simulated: posterior for a variance parameter (boundary at 0)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">999</span><span class="op">)</span></span>
 <span><span class="va">variance_posterior</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Chisquare.html" class="external-link">rchisq</a></span><span class="op">(</span><span class="fl">4000</span>, df <span class="op">=</span> <span class="fl">5</span><span class="op">)</span> <span class="op">/</span> <span class="fl">5</span>, ncol <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
@@ -453,27 +475,29 @@ estimating a <strong>variance parameter</strong>:</p>
 <span><span class="co"># Check normality</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/hist.html" class="external-link">hist</a></span><span class="op">(</span><span class="va">variance_posterior</span>, breaks <span class="op">=</span> <span class="fl">30</span>, main <span class="op">=</span> <span class="st">"Variance Posterior"</span>,</span>
-<span>     xlab <span class="op">=</span> <span class="st">"σ²"</span>, col <span class="op">=</span> <span class="st">"lightblue"</span><span class="op">)</span></span>
+<span>     xlab <span class="op">=</span> <span class="st">"sigma^2"</span>, col <span class="op">=</span> <span class="st">"lightblue"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/qqnorm.html" class="external-link">qqnorm</a></span><span class="op">(</span><span class="va">variance_posterior</span>, main <span class="op">=</span> <span class="st">"QQ Plot"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/qqnorm.html" class="external-link">qqline</a></span><span class="op">(</span><span class="va">variance_posterior</span>, col <span class="op">=</span> <span class="st">"red"</span>, lwd <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
 <p><img src="federated_learning_files/figure-html/clt_failure_example-1.png" class="r-plt" alt="" width="768"></p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Skewness</span></span>
 <span><span class="va">skew</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="op">(</span><span class="va">variance_posterior</span> <span class="op">-</span> <span class="va">var_mean</span><span class="op">)</span><span class="op">^</span><span class="fl">3</span><span class="op">)</span> <span class="op">/</span> <span class="va">var_se</span><span class="op">^</span><span class="fl">3</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Skewness:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">skew</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"(should be ~0 for normal)\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Skewness: 1.24 (should be ~0 for normal)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"This posterior is RIGHT-SKEWED - CLT approximation would be poor!\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; This posterior is RIGHT-SKEWED - CLT approximation would be poor!</span></span></code></pre></div>
-<p><strong>For this scenario:</strong><br>
-- Path B (summaries) would give biased results<br>
-- Path A (mixture) handles the skewness correctly</p>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Skewness:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">skew</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"(should be about 0 for normal)\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Skewness: 1.24 (should be about 0 for normal)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"This posterior is right-skewed - CLT approximation would be poor!\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; This posterior is right-skewed - CLT approximation would be poor!</span></span></code></pre></div>
+<p><strong>For this scenario:</strong></p>
+<ul>
+<li>Path B summaries would give biased results</li>
+<li>Path A mixture handles the skewness correctly</li>
+</ul>
 </div>
 <div class="section level4">
 <h4 id="step-2-fit-using-clt-approximation">Step 2: Fit Using CLT Approximation<a class="anchor" aria-label="anchor" href="#step-2-fit-using-clt-approximation"></a>
 </h4>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Extract means and variances</span></span>
 <span><span class="va">mle_estimates</span> <span class="op">&lt;-</span> <span class="va">site_summaries</span><span class="op">$</span><span class="va">beta_age_mean</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">mle_estimates</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="va">site_summaries</span><span class="op">$</span><span class="va">site</span></span>
@@ -506,7 +530,7 @@ estimating a <strong>variance parameter</strong>:</p>
 <div class="section level3">
 <h3 id="compare-paths">Compare Paths<a class="anchor" aria-label="anchor" href="#compare-paths"></a>
 </h3>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mu_tau_summaries</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_mu_tau.html">extract_mu_tau</a></span><span class="op">(</span><span class="va">fit_summaries</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
@@ -524,15 +548,15 @@ estimating a <strong>variance parameter</strong>:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">comparison</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   parameter full_posteriors summaries_only   difference</span></span>
-<span><span class="co">#&gt; 1        mu     0.049595359    0.049744508 1.491484e-04</span></span>
-<span><span class="co">#&gt; 2       tau     0.006242385    0.006248864 6.478663e-06</span></span>
+<span><span class="co">#&gt; 1        mu     0.049671923    0.049744508 7.258463e-05</span></span>
+<span><span class="co">#&gt; 2       tau     0.006318975    0.006248864 7.011127e-05</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nMaximum difference:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">comparison</span><span class="op">$</span><span class="va">difference</span><span class="op">)</span>, <span class="fl">5</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Maximum difference: 0.00015</span></span></code></pre></div>
+<span><span class="co">#&gt; Maximum difference: 7e-05</span></span></code></pre></div>
 <p><strong>Conclusion</strong>: Both paths give nearly identical results
 <strong>because</strong> posteriors are approximately normal in this
-case. This will not always be true!</p>
+case. This will not always be true.</p>
 <p><strong>When each path is appropriate:</strong></p>
 <table style="width:100%;" class="table">
 <colgroup>
@@ -562,7 +586,7 @@ case. This will not always be true!</p>
 <td>CLT may not hold yet</td>
 </tr>
 <tr class="even">
-<td>Boundary constraints (e.g., σ &gt; 0)</td>
+<td>Boundary constraints</td>
 <td>Path A required</td>
 <td>CLT assumes interior parameters</td>
 </tr>
@@ -572,9 +596,9 @@ case. This will not always be true!</p>
 <td>Conservative choice</td>
 </tr>
 <tr class="even">
-<td>Maximum privacy needed + normal posteriors</td>
+<td>Maximum privacy needed and normal posteriors</td>
 <td>Path B acceptable</td>
-<td>But verify normality!</td>
+<td>But verify normality</td>
 </tr>
 </tbody>
 </table>
@@ -586,23 +610,28 @@ case. This will not always be true!</p>
 <div class="section level3">
 <h3 id="visualize-shrinkage-effect">Visualize Shrinkage Effect<a class="anchor" aria-label="anchor" href="#visualize-shrinkage-effect"></a>
 </h3>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Using Path A results (nearly identical for Path B)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit_full_post</span><span class="op">)</span></span></code></pre></div>
 <p><img src="federated_learning_files/figure-html/viz_shrinkage-1.png" class="r-plt" alt="" width="960"></p>
-<p><strong>Key insights:</strong><br>
-- <strong>Community Hospital</strong> (smallest site) shrinks most
-toward network mean<br>
-- <strong>University Medical</strong> (largest site) keeps closest to
-original estimate<br>
-- <strong>Metro General</strong> and <strong>VA Hospital</strong> pulled
-slightly toward center<br>
-- Adaptive borrowing based on precision!</p>
+<p><strong>Key insights:</strong></p>
+<ul>
+<li>
+<strong>Community Hospital</strong> shrinks most toward the network
+mean</li>
+<li>
+<strong>University Medical</strong> keeps closest to its original
+estimate</li>
+<li>
+<strong>Metro General</strong> and <strong>VA Hospital</strong> are
+pulled slightly toward the center</li>
+<li>Adaptive borrowing is based on precision</li>
+</ul>
 </div>
 <div class="section level3">
 <h3 id="quantify-uncertainty-reduction">Quantify Uncertainty Reduction<a class="anchor" aria-label="anchor" href="#quantify-uncertainty-reduction"></a>
 </h3>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Get Stage 2 estimates</span></span>
 <span><span class="va">theta_post</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/summarise_theta.html">summarize_theta</a></span><span class="op">(</span><span class="va">fit_full_post</span><span class="op">)</span></span>
 <span></span>
@@ -622,28 +651,25 @@ slightly toward center<br>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">uncertainty_comparison</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                   site n_patients  stage1_se   stage2_se reduction_pct</span></span>
-<span><span class="co">#&gt; 1        Metro General       1500 0.01428679 0.008272696      42.09548</span></span>
-<span><span class="co">#&gt; 2      County Regional        800 0.01992675 0.008979639      54.93675</span></span>
-<span><span class="co">#&gt; 3   University Medical       2200 0.01246048 0.007916911      36.46382</span></span>
-<span><span class="co">#&gt; 4   Community Hospital        350 0.03047231 0.010540811      65.40856</span></span>
-<span><span class="co">#&gt; 5     Veterans Affairs       1100 0.01752091 0.009019055      48.52405</span></span>
-<span><span class="co">#&gt; 6 Children's Specialty        900 0.01888196 0.009357809      50.44048</span></span>
+<span><span class="co">#&gt; 1        Metro General       1500 0.01428679 0.008509725      40.43641</span></span>
+<span><span class="co">#&gt; 2      County Regional        800 0.01992675 0.009409275      52.78068</span></span>
+<span><span class="co">#&gt; 3   University Medical       2200 0.01246048 0.008110793      34.90785</span></span>
+<span><span class="co">#&gt; 4   Community Hospital        350 0.03047231 0.010262076      66.32328</span></span>
+<span><span class="co">#&gt; 5     Veterans Affairs       1100 0.01752091 0.009254995      47.17743</span></span>
+<span><span class="co">#&gt; 6 Children's Specialty        900 0.01888196 0.009187466      51.34263</span></span>
 <span><span class="co">#&gt;   stage1_ci_width stage2_ci_width ci_width_reduction</span></span>
-<span><span class="co">#&gt; 1      0.05600421      0.03242897           42.09548</span></span>
-<span><span class="co">#&gt; 2      0.07811285      0.03520019           54.93675</span></span>
-<span><span class="co">#&gt; 3      0.04884507      0.03103429           36.46382</span></span>
-<span><span class="co">#&gt; 4      0.11945147      0.04131998           65.40856</span></span>
-<span><span class="co">#&gt; 5      0.06868197      0.03535470           48.52405</span></span>
-<span><span class="co">#&gt; 6      0.07401729      0.03668261           50.44048</span></span></code></pre></div>
-<p><strong>Largest improvements</strong> in smaller sites:<br>
-- Community Hospital: 26% reduction in SE<br>
-- Children’s Specialty: 18% reduction in SE<br>
-- County Regional: 15% reduction in SE</p>
+<span><span class="co">#&gt; 1      0.05600421      0.03335812           40.43641</span></span>
+<span><span class="co">#&gt; 2      0.07811285      0.03688436           52.78068</span></span>
+<span><span class="co">#&gt; 3      0.04884507      0.03179431           34.90785</span></span>
+<span><span class="co">#&gt; 4      0.11945147      0.04022734           66.32328</span></span>
+<span><span class="co">#&gt; 5      0.06868197      0.03627958           47.17743</span></span>
+<span><span class="co">#&gt; 6      0.07401729      0.03601487           51.34263</span></span></code></pre></div>
+<p><strong>Largest improvements</strong> occur in smaller sites.</p>
 </div>
 <div class="section level3">
 <h3 id="visualize-uncertainty-reduction">Visualize Uncertainty Reduction<a class="anchor" aria-label="anchor" href="#visualize-uncertainty-reduction"></a>
 </h3>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Prepare data for plotting</span></span>
 <span><span class="va">uncertainty_long</span> <span class="op">&lt;-</span> <span class="va">uncertainty_comparison</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">site</span>, <span class="va">n_patients</span>, <span class="va">stage1_se</span>, <span class="va">stage2_se</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
@@ -665,12 +691,12 @@ slightly toward center<br>
 <span>            position <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/position_dodge.html" class="external-link">position_dodge</a></span><span class="op">(</span>width <span class="op">=</span> <span class="fl">0.9</span><span class="op">)</span>,</span>
 <span>            vjust <span class="op">=</span> <span class="op">-</span><span class="fl">0.5</span>, size <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_fill_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Stage 1 (Independent)"</span> <span class="op">=</span> <span class="st">"steelblue"</span>,</span>
-<span>                                <span class="st">"Stage 2 (Shrunken)"</span> <span class="op">=</span> <span class="st">"coral"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>                               <span class="st">"Stage 2 (Shrunken)"</span> <span class="op">=</span> <span class="st">"coral"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span></span>
 <span>    title <span class="op">=</span> <span class="st">"Uncertainty Reduction Through Federated Learning"</span>,</span>
 <span>    subtitle <span class="op">=</span> <span class="st">"Sites ordered by sample size (largest to smallest)"</span>,</span>
 <span>    x <span class="op">=</span> <span class="st">"Hospital Site"</span>,</span>
-<span>    y <span class="op">=</span> <span class="st">"Standard Error (β₁)"</span>,</span>
+<span>    y <span class="op">=</span> <span class="st">"Standard Error"</span>,</span>
 <span>    fill <span class="op">=</span> <span class="cn">NULL</span></span>
 <span>  <span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
@@ -687,7 +713,7 @@ slightly toward center<br>
 <div class="section level3">
 <h3 id="stage-1-independent-site-predictions">Stage 1: Independent Site Predictions<a class="anchor" aria-label="anchor" href="#stage-1-independent-site-predictions"></a>
 </h3>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Example: 70-year-old patient</span></span>
 <span><span class="va">age</span> <span class="op">&lt;-</span> <span class="fl">70</span></span>
 <span><span class="va">baseline_age</span> <span class="op">&lt;-</span> <span class="fl">60</span>  <span class="co"># Reference age</span></span>
@@ -706,7 +732,7 @@ slightly toward center<br>
 <div class="section level3">
 <h3 id="stage-2-network-calibrated-predictions">Stage 2: Network-Calibrated Predictions<a class="anchor" aria-label="anchor" href="#stage-2-network-calibrated-predictions"></a>
 </h3>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Stage 2 predictions (network-calibrated)</span></span>
 <span><span class="va">stage2_log_or</span> <span class="op">&lt;-</span> <span class="va">theta_post</span><span class="op">$</span><span class="va">mean</span> <span class="op">*</span> <span class="op">(</span><span class="va">age</span> <span class="op">-</span> <span class="va">baseline_age</span><span class="op">)</span></span>
 <span><span class="va">stage2_or</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">stage2_log_or</span><span class="op">)</span></span>
@@ -724,7 +750,7 @@ slightly toward center<br>
 <div class="section level3">
 <h3 id="visualize-prediction-changes">Visualize Prediction Changes<a class="anchor" aria-label="anchor" href="#visualize-prediction-changes"></a>
 </h3>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">all_preds</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">site</span>, y <span class="op">=</span> <span class="va">odds_ratio</span>, fill <span class="op">=</span> <span class="va">stage</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_bar.html" class="external-link">geom_col</a></span><span class="op">(</span>position <span class="op">=</span> <span class="st">"dodge"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_hline</a></span><span class="op">(</span>yintercept <span class="op">=</span> <span class="fl">1</span>, linetype <span class="op">=</span> <span class="st">"dashed"</span>, color <span class="op">=</span> <span class="st">"gray30"</span><span class="op">)</span> <span class="op">+</span></span>
@@ -732,7 +758,7 @@ slightly toward center<br>
 <span>            position <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/position_dodge.html" class="external-link">position_dodge</a></span><span class="op">(</span>width <span class="op">=</span> <span class="fl">0.9</span><span class="op">)</span>,</span>
 <span>            vjust <span class="op">=</span> <span class="op">-</span><span class="fl">0.5</span>, size <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_fill_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Independent"</span> <span class="op">=</span> <span class="st">"steelblue"</span>,</span>
-<span>                                <span class="st">"Network-Calibrated"</span> <span class="op">=</span> <span class="st">"coral"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>                               <span class="st">"Network-Calibrated"</span> <span class="op">=</span> <span class="st">"coral"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span></span>
 <span>    title <span class="op">=</span> <span class="st">"Predicted Odds Ratio for 70 vs 60 Year-Old Patient"</span>,</span>
 <span>    subtitle <span class="op">=</span> <span class="st">"Network calibration stabilizes predictions across sites"</span>,</span>
@@ -746,11 +772,13 @@ slightly toward center<br>
 <span>    legend.position <span class="op">=</span> <span class="st">"bottom"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 <p><img src="federated_learning_files/figure-html/plot_predictions-1.png" class="r-plt" alt="" width="960"></p>
-<p><strong>Clinical interpretation</strong>:<br>
-- Independent estimates vary widely (1.42 to 1.81)<br>
-- Network-calibrated estimates are more consistent (1.52 to 1.60)<br>
-- Small sites benefit most from network information<br>
-- Preserves meaningful site-specific variation</p>
+<p><strong>Clinical interpretation:</strong></p>
+<ul>
+<li>Independent estimates vary across sites</li>
+<li>Network-calibrated estimates are more consistent</li>
+<li>Small sites benefit most from network information</li>
+<li>Meaningful site-specific variation is preserved</li>
+</ul>
 </div>
 </div>
 <div class="section level2">
@@ -759,11 +787,11 @@ slightly toward center<br>
 <div class="section level3">
 <h3 id="what-gets-shared">What Gets Shared<a class="anchor" aria-label="anchor" href="#what-gets-shared"></a>
 </h3>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">privacy_comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  approach <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Centralized Data"</span>, <span class="st">"Path A: Full Posteriors"</span>, <span class="st">"Path B: Summaries"</span><span class="op">)</span>,</span>
 <span>  patient_data_shared <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Yes - All records"</span>, <span class="st">"No"</span>, <span class="st">"No"</span><span class="op">)</span>,</span>
-<span>  data_per_site <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"~50-200 MB"</span>, <span class="st">"~200 KB"</span>, <span class="st">"~16 bytes"</span><span class="op">)</span>,</span>
+<span>  data_per_site <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"about 50-200 MB"</span>, <span class="st">"about 200 KB"</span>, <span class="st">"about 16 bytes"</span><span class="op">)</span>,</span>
 <span>  privacy_risk <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"High"</span>, <span class="st">"Low"</span>, <span class="st">"Minimal"</span><span class="op">)</span>,</span>
 <span>  validity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N/A"</span>, <span class="st">"Always valid"</span>, <span class="st">"Only if CLT holds"</span><span class="op">)</span>,</span>
 <span>  when_to_use <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Not for federated"</span>, <span class="st">"Default choice"</span>, <span class="st">"When posteriors normal"</span><span class="op">)</span></span>
@@ -773,9 +801,9 @@ slightly toward center<br>
 <table class="table">
 <colgroup>
 <col width="20%">
-<col width="18%">
-<col width="12%">
-<col width="12%">
+<col width="17%">
+<col width="14%">
+<col width="11%">
 <col width="16%">
 <col width="19%">
 </colgroup>
@@ -791,7 +819,7 @@ slightly toward center<br>
 <tr class="odd">
 <td align="left">Centralized Data</td>
 <td align="center">Yes - All records</td>
-<td align="center">~50-200 MB</td>
+<td align="center">about 50-200 MB</td>
 <td align="center">High</td>
 <td align="center">N/A</td>
 <td align="left">Not for federated</td>
@@ -799,7 +827,7 @@ slightly toward center<br>
 <tr class="even">
 <td align="left">Path A: Full Posteriors</td>
 <td align="center">No</td>
-<td align="center">~200 KB</td>
+<td align="center">about 200 KB</td>
 <td align="center">Low</td>
 <td align="center">Always valid</td>
 <td align="left">Default choice</td>
@@ -807,24 +835,26 @@ slightly toward center<br>
 <tr class="odd">
 <td align="left">Path B: Summaries</td>
 <td align="center">No</td>
-<td align="center">~16 bytes</td>
+<td align="center">about 16 bytes</td>
 <td align="center">Minimal</td>
 <td align="center">Only if CLT holds</td>
 <td align="left">When posteriors normal</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Key insight</strong>: Path A (full posteriors at ~200 KB) is
-still 1000× smaller than centralized data (~200 MB) while being valid in
-all scenarios. Path B saves another 12,500× but requires normality.</p>
+<p><strong>Key insight</strong>: Path A shares much less data than
+centralized analysis while being valid in all scenarios. Path B shares
+even less data but requires approximate posterior normality.</p>
 </div>
 <div class="section level3">
 <h3 id="compliance-benefits">Compliance Benefits<a class="anchor" aria-label="anchor" href="#compliance-benefits"></a>
 </h3>
-<p><strong>Certain data privacy policies satisfied</strong>:<br>
-- No patient-level data leaves sites<br>
-- Only aggregate statistical summaries shared<br>
-- De-identified parameter estimates</p>
+<p><strong>Certain data privacy policies satisfied:</strong></p>
+<ul>
+<li>No patient-level data leaves sites</li>
+<li>Only aggregate statistical summaries are shared</li>
+<li>De-identified parameter estimates are exchanged</li>
+</ul>
 </div>
 </div>
 <div class="section level2">
@@ -834,18 +864,17 @@ all scenarios. Path B saves another 12,500× but requires normality.</p>
 <h3 id="scenario-1-heterogeneous-models">Scenario 1: Heterogeneous Models<a class="anchor" aria-label="anchor" href="#scenario-1-heterogeneous-models"></a>
 </h3>
 <p>Sites use different model specifications:</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Site 1: Linear model</span></span>
 <span><span class="co"># Site 2: GLM with splines</span></span>
 <span><span class="co"># Site 3: Bayesian hierarchical model</span></span>
 <span></span>
-<span><span class="co"># As long as they all estimate the same parameter (e.g., treatment effect),</span></span>
-<span><span class="co"># shrinkr can combine them!</span></span>
+<span><span class="co"># As long as they all estimate the same parameter, shrinkr can combine them.</span></span>
 <span></span>
 <span><span class="va">samples_heterogeneous</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  site1 <span class="op">=</span> <span class="va">samples_from_lm</span>,</span>
-<span>  site2 <span class="op">=</span> <span class="va">samples_from_glm</span>,  <span class="co"># Extract coefficient for treatment</span></span>
-<span>  site3 <span class="op">=</span> <span class="va">samples_from_bayes</span>  <span class="co"># Extract theta[treatment]</span></span>
+<span>  site2 <span class="op">=</span> <span class="va">samples_from_glm</span>,</span>
+<span>  site3 <span class="op">=</span> <span class="va">samples_from_bayes</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Proceed with shrinkr as usual</span></span>
@@ -856,7 +885,7 @@ all scenarios. Path B saves another 12,500× but requires normality.</p>
 <h3 id="scenario-2-meta-analysis-of-published-studies">Scenario 2: Meta-Analysis of Published Studies<a class="anchor" aria-label="anchor" href="#scenario-2-meta-analysis-of-published-studies"></a>
 </h3>
 <p>Combine published results without raw data:</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Extracted from publications</span></span>
 <span><span class="va">published_estimates</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="st">"Smith et al. (2020)"</span> <span class="op">=</span> <span class="fl">0.45</span>,</span>
@@ -868,33 +897,23 @@ all scenarios. Path B saves another 12,500× but requires normality.</p>
 <span><span class="va">published_ses</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.12</span>, <span class="fl">0.15</span>, <span class="fl">0.10</span>, <span class="fl">0.13</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Apply shrinkr for Bayesian meta-analysis</span></span>
-<span><span class="co"># NOTE: This assumes published estimates are approximately normal!</span></span>
-<span><span class="co"># This is usually reasonable for:</span></span>
-<span><span class="co">#   - Large studies (CLT has kicked in)</span></span>
-<span><span class="co">#   - Parameters on unrestricted scale (e.g., log-OR, not OR)</span></span>
-<span><span class="co">#   - Standard errors are from asymptotic approximations</span></span>
+<span><span class="co"># NOTE: This assumes published estimates are approximately normal.</span></span>
 <span></span>
 <span><span class="va">fit_meta</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/shrink.html">shrink</a></span><span class="op">(</span></span>
 <span>  mle <span class="op">=</span> <span class="va">published_estimates</span>,</span>
 <span>  var_matrix <span class="op">=</span> <span class="va">published_ses</span><span class="op">^</span><span class="fl">2</span>,</span>
 <span>  hierarchical_priors <span class="op">=</span> <span class="va">priors</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># CAUTION: If studies report:</span></span>
-<span><span class="co">#   - Odds ratios (not log-OR) - use log-scale</span></span>
-<span><span class="co">#   - Proportions near 0 or 1 - may be skewed</span></span>
-<span><span class="co">#   - Small sample sizes - CLT may not hold</span></span>
-<span><span class="co"># In these cases, request posterior samples if possible</span></span></code></pre></div>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="scenario-3-iterative-federated-updates">Scenario 3: Iterative Federated Updates<a class="anchor" aria-label="anchor" href="#scenario-3-iterative-federated-updates"></a>
 </h3>
 <p>New sites join the network over time:</p>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Initial network (3 sites)</span></span>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Initial network</span></span>
 <span><span class="va">fit_initial</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/shrink.html">shrink</a></span><span class="op">(</span><span class="va">samples_initial</span>, <span class="va">priors</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># New site joins - refit with 4 sites</span></span>
+<span><span class="co"># New site joins</span></span>
 <span><span class="va">samples_updated</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">samples_initial</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>new_site <span class="op">=</span> <span class="va">new_samples</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">fit_updated</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/shrink.html">shrink</a></span><span class="op">(</span><span class="va">samples_updated</span>, <span class="va">priors</span><span class="op">)</span></span>
 <span></span>
@@ -909,45 +928,55 @@ all scenarios. Path B saves another 12,500× but requires normality.</p>
 <div class="section level3">
 <h3 id="establish-data-governance">1. Establish Data Governance<a class="anchor" aria-label="anchor" href="#establish-data-governance"></a>
 </h3>
-<p><strong>Before sharing any summaries:</strong><br>
-- Define what parameters will be shared<br>
-- Establish data use agreements for summary statistics<br>
-- Document privacy protections<br>
-- Get institutional approval</p>
+<p><strong>Before sharing any summaries:</strong></p>
+<ul>
+<li>Define what parameters will be shared</li>
+<li>Establish data use agreements for summary statistics</li>
+<li>Document privacy protections</li>
+<li>Get institutional approval</li>
+</ul>
 </div>
 <div class="section level3">
 <h3 id="standardize-stage-1-models">2. Standardize Stage 1 Models<a class="anchor" aria-label="anchor" href="#standardize-stage-1-models"></a>
 </h3>
-<p><strong>Ensure comparability:</strong><br>
-- Use consistent outcome definitions<br>
-- Standardize predictor coding/scaling<br>
-- Document any site-specific modifications<br>
-- Agree on parameter naming conventions</p>
+<p><strong>Ensure comparability:</strong></p>
+<ul>
+<li>Use consistent outcome definitions</li>
+<li>Standardize predictor coding/scaling</li>
+<li>Document any site-specific modifications</li>
+<li>Agree on parameter naming conventions</li>
+</ul>
 </div>
 <div class="section level3">
-<h3 id="verify-normality-if-using-summaries">3. Verify Normality (if using summaries<a class="anchor" aria-label="anchor" href="#verify-normality-if-using-summaries"></a>
+<h3 id="verify-normality-if-using-summaries">3. Verify Normality if Using Summaries<a class="anchor" aria-label="anchor" href="#verify-normality-if-using-summaries"></a>
 </h3>
-<p><strong>If using Path B (summary statistics only), sites
-must:</strong> - Generate QQ plots of posteriors<br>
-- Compute skewness and excess kurtosis<br>
-- Share diagnostic plots with coordinator<br>
-- Agree normality is reasonable before proceeding</p>
-<p><strong>Red flags for non-normality:</strong><br>
-- Boundary constraints (variance parameters, probabilities)<br>
-- Small sample sizes (n &lt; 30-50 per site)<br>
-- Highly skewed or heavy-tailed data</p>
-<p><strong>When in doubt, use Path A</strong> (mixture
-approximation).</p>
+<p><strong>If using Path B, sites must:</strong></p>
+<ul>
+<li>Generate QQ plots of posteriors</li>
+<li>Compute skewness and excess kurtosis</li>
+<li>Share diagnostic plots with the coordinator</li>
+<li>Agree normality is reasonable before proceeding</li>
+</ul>
+<p><strong>Red flags for non-normality:</strong></p>
+<ul>
+<li>Boundary constraints, such as variance parameters or
+probabilities</li>
+<li>Small sample sizes</li>
+<li>Highly skewed or heavy-tailed data</li>
+</ul>
+<p><strong>When in doubt, use Path A</strong>.</p>
 </div>
 <div class="section level3">
 <h3 id="quality-control">4. Quality Control<a class="anchor" aria-label="anchor" href="#quality-control"></a>
 </h3>
-<p><strong>Central coordinator should:</strong><br>
-- Check for outliers in shared summaries<br>
-- Verify mixture approximation quality (Path A)<br>
-- Assess prior-data conflicts<br>
-- Report back site-specific diagnostics</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<p><strong>Central coordinator should:</strong></p>
+<ul>
+<li>Check for outliers in shared summaries</li>
+<li>Verify mixture approximation quality for Path A</li>
+<li>Assess prior-data conflicts</li>
+<li>Report back site-specific diagnostics</li>
+</ul>
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Example: Flag suspicious estimates</span></span>
 <span><span class="va">qc_results</span> <span class="op">&lt;-</span> <span class="va">site_summaries</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span></span>
@@ -970,11 +999,11 @@ approximation).</p>
 <h3 id="sensitivity-analysis">5. Sensitivity Analysis<a class="anchor" aria-label="anchor" href="#sensitivity-analysis"></a>
 </h3>
 <p>Test robustness to prior specifications:</p>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Alternative prior: More heterogeneity</span></span>
 <span><span class="va">priors_alt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  mu <span class="op">=</span> <span class="fu"><a href="https://pkg.mitchelloharawild.com/distributional/reference/dist_normal.html" class="external-link">dist_normal</a></span><span class="op">(</span><span class="fl">0.05</span>, <span class="fl">0.025</span><span class="op">)</span>,</span>
-<span>  tau <span class="op">=</span> <span class="fu"><a href="https://pkg.mitchelloharawild.com/distributional/reference/dist_truncated.html" class="external-link">dist_truncated</a></span><span class="op">(</span><span class="fu"><a href="https://pkg.mitchelloharawild.com/distributional/reference/dist_student_t.html" class="external-link">dist_student_t</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">0</span>, <span class="fl">0.02</span><span class="op">)</span>, lower <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>  <span class="co"># Wider tau</span></span>
+<span>  tau <span class="op">=</span> <span class="fu"><a href="https://pkg.mitchelloharawild.com/distributional/reference/dist_truncated.html" class="external-link">dist_truncated</a></span><span class="op">(</span><span class="fu"><a href="https://pkg.mitchelloharawild.com/distributional/reference/dist_student_t.html" class="external-link">dist_student_t</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">0</span>, <span class="fl">0.02</span><span class="op">)</span>, lower <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_alt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/shrink.html">shrink</a></span><span class="op">(</span></span>
@@ -985,7 +1014,7 @@ approximation).</p>
 <span>  warmup <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">456</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compare key results</span></span>
 <span><span class="va">mu_base</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="../reference/extract_mu_tau.html">extract_mu_tau</a></span><span class="op">(</span><span class="va">fit_full_post</span><span class="op">)</span><span class="op">$</span><span class="va">mu</span><span class="op">)</span></span>
 <span><span class="va">mu_alt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="../reference/extract_mu_tau.html">extract_mu_tau</a></span><span class="op">(</span><span class="va">fit_alt</span><span class="op">)</span><span class="op">$</span><span class="va">mu</span><span class="op">)</span></span>
@@ -996,19 +1025,21 @@ approximation).</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Sensitivity to prior on tau:\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Sensitivity to prior on tau:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  mu: Base ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">mu_base</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">", Alternative ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">mu_alt</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   mu: Base = 0.0496 , Alternative = 0.0502</span></span>
+<span><span class="co">#&gt;   mu: Base = 0.0497 , Alternative = 0.0496</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  tau: Base ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">tau_base</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">", Alternative ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">tau_alt</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   tau: Base = 0.0062 , Alternative = 0.0085</span></span></code></pre></div>
+<span><span class="co">#&gt;   tau: Base = 0.0063 , Alternative = 0.0082</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="transparent-reporting">6. Transparent Reporting<a class="anchor" aria-label="anchor" href="#transparent-reporting"></a>
 </h3>
-<p><strong>Share with network participants:</strong><br>
-- Network-level estimates (μ, τ)<br>
-- Site-specific shrunken estimates<br>
-- Diagnostics (convergence, sensitivity)<br>
-- Quantified uncertainty reduction</p>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
+<p><strong>Share with network participants:</strong></p>
+<ul>
+<li>Network-level estimates</li>
+<li>Site-specific shrunken estimates</li>
+<li>Diagnostics, including convergence and sensitivity</li>
+<li>Quantified uncertainty reduction</li>
+</ul>
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Create site-specific report</span></span>
 <span><span class="va">site_report</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  site <span class="op">=</span> <span class="va">theta_post</span><span class="op">$</span><span class="va">group</span>,</span>
@@ -1025,27 +1056,27 @@ approximation).</p>
 <span><span class="co">#&gt; Federated Learning Results Report</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"==================================\n\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; ==================================</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Network-level estimate (μ):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">mu</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Network-level estimate (μ): 0.0496</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Between-site heterogeneity (τ):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">tau</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Between-site heterogeneity (τ): 0.0062</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Network-level estimate (mu):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">mu</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Network-level estimate (mu): 0.0497</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Between-site heterogeneity (tau):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">mu_tau_full</span><span class="op">$</span><span class="va">tau</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Between-site heterogeneity (tau): 0.0063</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Site-specific calibrated estimates:\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Site-specific calibrated estimates:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">site_report</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                   site original_estimate original_se calibrated_estimate</span></span>
-<span><span class="co">#&gt; 1        Metro General            0.0496      0.0143              0.0497</span></span>
-<span><span class="co">#&gt; 2      County Regional            0.0591      0.0199              0.0506</span></span>
-<span><span class="co">#&gt; 3   University Medical            0.0448      0.0125              0.0486</span></span>
-<span><span class="co">#&gt; 4   Community Hospital            0.0108      0.0305              0.0474</span></span>
-<span><span class="co">#&gt; 5     Veterans Affairs            0.0678      0.0175              0.0522</span></span>
+<span><span class="co">#&gt; 1        Metro General            0.0496      0.0143              0.0498</span></span>
+<span><span class="co">#&gt; 2      County Regional            0.0591      0.0199              0.0507</span></span>
+<span><span class="co">#&gt; 3   University Medical            0.0448      0.0125              0.0488</span></span>
+<span><span class="co">#&gt; 4   Community Hospital            0.0108      0.0305              0.0477</span></span>
+<span><span class="co">#&gt; 5     Veterans Affairs            0.0678      0.0175              0.0520</span></span>
 <span><span class="co">#&gt; 6 Children's Specialty            0.0468      0.0189              0.0493</span></span>
 <span><span class="co">#&gt;   calibrated_se uncertainty_reduction</span></span>
-<span><span class="co">#&gt; 1        0.0083               42.0955</span></span>
-<span><span class="co">#&gt; 2        0.0090               54.9368</span></span>
-<span><span class="co">#&gt; 3        0.0079               36.4638</span></span>
-<span><span class="co">#&gt; 4        0.0105               65.4086</span></span>
-<span><span class="co">#&gt; 5        0.0090               48.5241</span></span>
-<span><span class="co">#&gt; 6        0.0094               50.4405</span></span></code></pre></div>
+<span><span class="co">#&gt; 1        0.0085               40.4364</span></span>
+<span><span class="co">#&gt; 2        0.0094               52.7807</span></span>
+<span><span class="co">#&gt; 3        0.0081               34.9078</span></span>
+<span><span class="co">#&gt; 4        0.0103               66.3233</span></span>
+<span><span class="co">#&gt; 5        0.0093               47.1774</span></span>
+<span><span class="co">#&gt; 6        0.0092               51.3426</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -1063,13 +1094,13 @@ approximation).</p>
 <tbody>
 <tr class="odd">
 <td><strong>Two-stage design</strong></td>
-<td>Clean separation between local (Stage 1) and collaborative (Stage 2)
+<td>Clean separation between local Stage 1 and collaborative Stage 2
 analysis</td>
 </tr>
 <tr class="even">
 <td><strong>Flexible sharing options</strong></td>
-<td>Can share full posteriors, mixture approximations, OR summaries (if
-CLT holds)</td>
+<td>Can share full posteriors, mixture approximations, or summaries if
+CLT holds</td>
 </tr>
 <tr class="odd">
 <td><strong>Privacy preserving</strong></td>
@@ -1090,11 +1121,11 @@ uncertainty</td>
 </tr>
 <tr class="odd">
 <td><strong>Handles non-normality</strong></td>
-<td>Mixture approximation works for skewed/multimodal posteriors</td>
+<td>Mixture approximation works for skewed or multimodal posteriors</td>
 </tr>
 <tr class="even">
 <td><strong>Regulatory friendly</strong></td>
-<td>Complies with HIPAA, GDPR, and institutional policies</td>
+<td>Supports HIPAA, GDPR, and institutional privacy constraints</td>
 </tr>
 </tbody>
 </table>
@@ -1102,25 +1133,30 @@ uncertainty</td>
 <div class="section level2">
 <h2 id="when-to-use-federated-shrinkr">When to Use Federated shrinkr<a class="anchor" aria-label="anchor" href="#when-to-use-federated-shrinkr"></a>
 </h2>
-<p><strong>Ideal scenarios:</strong><br>
-- Multi-center clinical trials<br>
-- Hospital network collaborations<br>
-- International consortia<br>
-- Meta-analyses with limited published data<br>
-- Any setting where data cannot be centralized</p>
-<p><strong>Requirements:</strong> - Sites can fit Bayesian models
-independently<br>
-- Sites can share posterior samples OR mixture approximations<br>
-- <strong>OR</strong> sites can share means + SEs <strong>AND</strong>
-posteriors are approximately normal<br>
-- Common parameter of interest across sites<br>
-- Central coordinator to run Stage 2</p>
-<p><strong>Not recommended when:</strong><br>
-- Sites have very different populations (pooling may not make
-sense)<br>
-- Sites cannot agree on parameter definitions<br>
-- Posteriors are highly non-normal AND sites cannot share full
-posteriors/mixtures</p>
+<p><strong>Ideal scenarios:</strong></p>
+<ul>
+<li>Multi-center clinical trials</li>
+<li>Hospital network collaborations</li>
+<li>International consortia</li>
+<li>Meta-analyses with limited published data</li>
+<li>Any setting where data cannot be centralized</li>
+</ul>
+<p><strong>Requirements:</strong></p>
+<ul>
+<li>Sites can fit Bayesian models independently</li>
+<li>Sites can share posterior samples or mixture approximations</li>
+<li>Or sites can share means and SEs and posteriors are approximately
+normal</li>
+<li>Common parameter of interest across sites</li>
+<li>Central coordinator to run Stage 2</li>
+</ul>
+<p><strong>Not recommended when:</strong></p>
+<ul>
+<li>Sites have very different populations</li>
+<li>Sites cannot agree on parameter definitions</li>
+<li>Posteriors are highly non-normal and sites cannot share full
+posteriors or mixtures</li>
+</ul>
 </div>
 <div class="section level2">
 <h2 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
@@ -1129,52 +1165,53 @@ posteriors/mixtures</p>
 learning</strong> through its two-stage design:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>Stage 1</strong> (at each site): Fit local models behind
-firewall<br>
-</li>
+<strong>Stage 1</strong>: Fit local models behind each site’s
+firewall</li>
 <li>
-<strong>Check normality</strong> (if using summaries): Verify CLT
-assumptions hold<br>
-</li>
+<strong>Check normality</strong>: Verify CLT assumptions if using
+summaries</li>
 <li>
-<strong>Share</strong>: Full posteriors (Path A, ~200KB) or
-summaries (Path B, ~16 bytes)<br>
-</li>
+<strong>Share</strong>: Full posteriors, mixtures, or summaries</li>
 <li>
-<strong>Stage 2</strong> (central): Apply hierarchical
-shrinkage<br>
-</li>
+<strong>Stage 2</strong>: Apply hierarchical shrinkage
+centrally</li>
 <li>
 <strong>Return</strong>: Improved site-specific estimates</li>
 </ol>
-<p><strong>Key advantages:</strong><br>
-- Data sovereignty preserved<br>
-- Flexible sharing (full posteriors OR summaries)<br>
-- Handles non-normal posteriors (via mixture approximation)<br>
-- Improved estimates for all sites<br>
-- Proper uncertainty quantification<br>
-- Compliant with privacy regulations</p>
-<p><strong>Critical decision: Which path?</strong><br>
-- <strong>Path A</strong> (posteriors/mixture): Always valid, handles
-any posterior shape<br>
-- <strong>Path B</strong> (summaries): Valid only if posteriors are
-approximately normal<br>
-- <strong>When uncertain</strong>: Use Path A (safer, still minimal data
-sharing)</p>
+<p><strong>Key advantages:</strong></p>
+<ul>
+<li>Data sovereignty preserved</li>
+<li>Flexible sharing options</li>
+<li>Handles non-normal posteriors via mixture approximation</li>
+<li>Improved estimates for all sites</li>
+<li>Proper uncertainty quantification</li>
+<li>Compatible with privacy-focused workflows</li>
+</ul>
+<p><strong>Critical decision: Which path?</strong></p>
+<ul>
+<li>
+<strong>Path A</strong>: Always valid and handles any posterior
+shape</li>
+<li>
+<strong>Path B</strong>: Valid only if posteriors are approximately
+normal</li>
+<li>
+<strong>When uncertain</strong>: Use Path A</li>
+</ul>
 </div>
 <div class="section level2">
 <h2 id="additional-resources">Additional Resources<a class="anchor" aria-label="anchor" href="#additional-resources"></a>
 </h2>
-<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># See also:</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"getting_started"</span><span class="op">)</span>  <span class="co"># Core shrinkr workflow</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"tidy_bayesian_workflow"</span><span class="op">)</span>  <span class="co"># Working with posteriors</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"brms_integration"</span><span class="op">)</span>  <span class="co"># Using brms for Stage 1</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"getting_started"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"tidy_bayesian_workflow"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"brms_integration"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="session-info">Session Info<a class="anchor" aria-label="anchor" href="#session-info"></a>
 </h2>
-<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; R version 4.6.0 (2026-04-24)</span></span>
 <span><span class="co">#&gt; Platform: x86_64-pc-linux-gnu</span></span>
@@ -1198,7 +1235,7 @@ sharing)</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
 <span><span class="co">#&gt; [1] tidyr_1.3.2          ggplot2_4.0.3        dplyr_1.2.1         </span></span>
-<span><span class="co">#&gt; [4] posterior_1.7.0      distributional_0.7.1 shrinkr_0.4.3       </span></span>
+<span><span class="co">#&gt; [4] posterior_1.7.0      distributional_0.7.1 shrinkr_0.4.4       </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
 <span><span class="co">#&gt;  [1] tensorA_0.36.2.1      utf8_1.2.6            sass_0.4.10          </span></span>
