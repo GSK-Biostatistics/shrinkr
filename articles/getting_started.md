@@ -329,8 +329,8 @@ fit <- shrink(
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 1).
 #> Chain 1: 
-#> Chain 1: Gradient evaluation took 1.3e-05 seconds
-#> Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.13 seconds.
+#> Chain 1: Gradient evaluation took 1.5e-05 seconds
+#> Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.15 seconds.
 #> Chain 1: Adjust your expectations accordingly!
 #> Chain 1: 
 #> Chain 1: 
@@ -357,9 +357,9 @@ fit <- shrink(
 #> Chain 1: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 1: 
-#> Chain 1:  Elapsed Time: 0.05 seconds (Warm-up)
-#> Chain 1:                0.038 seconds (Sampling)
-#> Chain 1:                0.088 seconds (Total)
+#> Chain 1:  Elapsed Time: 0.053 seconds (Warm-up)
+#> Chain 1:                0.04 seconds (Sampling)
+#> Chain 1:                0.093 seconds (Total)
 #> Chain 1: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 2).
@@ -392,9 +392,9 @@ fit <- shrink(
 #> Chain 2: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 2: 
-#> Chain 2:  Elapsed Time: 0.05 seconds (Warm-up)
-#> Chain 2:                0.028 seconds (Sampling)
-#> Chain 2:                0.078 seconds (Total)
+#> Chain 2:  Elapsed Time: 0.054 seconds (Warm-up)
+#> Chain 2:                0.03 seconds (Sampling)
+#> Chain 2:                0.084 seconds (Total)
 #> Chain 2: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 3).
@@ -427,9 +427,9 @@ fit <- shrink(
 #> Chain 3: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 3: 
-#> Chain 3:  Elapsed Time: 0.051 seconds (Warm-up)
-#> Chain 3:                0.032 seconds (Sampling)
-#> Chain 3:                0.083 seconds (Total)
+#> Chain 3:  Elapsed Time: 0.057 seconds (Warm-up)
+#> Chain 3:                0.034 seconds (Sampling)
+#> Chain 3:                0.091 seconds (Total)
 #> Chain 3: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 4).
@@ -462,9 +462,9 @@ fit <- shrink(
 #> Chain 4: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 4: 
-#> Chain 4:  Elapsed Time: 0.047 seconds (Warm-up)
-#> Chain 4:                0.04 seconds (Sampling)
-#> Chain 4:                0.087 seconds (Total)
+#> Chain 4:  Elapsed Time: 0.051 seconds (Warm-up)
+#> Chain 4:                0.043 seconds (Sampling)
+#> Chain 4:                0.094 seconds (Total)
 #> Chain 4:
 
 print(fit)
@@ -584,9 +584,9 @@ fit_mle <- shrink(
 #> Chain 1: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 1: 
-#> Chain 1:  Elapsed Time: 0.051 seconds (Warm-up)
-#> Chain 1:                0.036 seconds (Sampling)
-#> Chain 1:                0.087 seconds (Total)
+#> Chain 1:  Elapsed Time: 0.055 seconds (Warm-up)
+#> Chain 1:                0.038 seconds (Sampling)
+#> Chain 1:                0.093 seconds (Total)
 #> Chain 1: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 2).
@@ -619,9 +619,9 @@ fit_mle <- shrink(
 #> Chain 2: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 2: 
-#> Chain 2:  Elapsed Time: 0.049 seconds (Warm-up)
-#> Chain 2:                0.039 seconds (Sampling)
-#> Chain 2:                0.088 seconds (Total)
+#> Chain 2:  Elapsed Time: 0.052 seconds (Warm-up)
+#> Chain 2:                0.041 seconds (Sampling)
+#> Chain 2:                0.093 seconds (Total)
 #> Chain 2: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 3).
@@ -654,9 +654,9 @@ fit_mle <- shrink(
 #> Chain 3: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 3: 
-#> Chain 3:  Elapsed Time: 0.046 seconds (Warm-up)
-#> Chain 3:                0.04 seconds (Sampling)
-#> Chain 3:                0.086 seconds (Total)
+#> Chain 3:  Elapsed Time: 0.05 seconds (Warm-up)
+#> Chain 3:                0.043 seconds (Sampling)
+#> Chain 3:                0.093 seconds (Total)
 #> Chain 3: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 4).
@@ -689,9 +689,9 @@ fit_mle <- shrink(
 #> Chain 4: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 4: 
-#> Chain 4:  Elapsed Time: 0.049 seconds (Warm-up)
-#> Chain 4:                0.033 seconds (Sampling)
-#> Chain 4:                0.082 seconds (Total)
+#> Chain 4:  Elapsed Time: 0.052 seconds (Warm-up)
+#> Chain 4:                0.036 seconds (Sampling)
+#> Chain 4:                0.088 seconds (Total)
 #> Chain 4:
 ```
 

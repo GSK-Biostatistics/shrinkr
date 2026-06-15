@@ -38,8 +38,9 @@ fit_mixture(samples, K_max = 5L, verbose = FALSE, model_names = NULL, ...)
 
 - K_max:
 
-  Integer (≥ 1). Maximum number of mixture components to consider during
-  model selection by BIC. Internally capped at `n - 1` for stability.
+  Integer \\(\ge 1)\\. Maximum number of mixture components to consider
+  during model selection by BIC. Internally capped at `n - 1` for
+  stability.
 
 - verbose:
 

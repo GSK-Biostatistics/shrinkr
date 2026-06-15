@@ -168,7 +168,7 @@ where \\q_g(\theta_g)\\ approximates the Stage 1 posterior for group
 
 4.  **Minimum 2 groups required** for heterogeneity estimation
 
-### Common Prior Choices for τ
+### Common Prior Choices for \\\tau\\
 
 - Half-Normal: `dist_truncated(dist_normal(0, s), lower = 0)` - Weakly
   informative
