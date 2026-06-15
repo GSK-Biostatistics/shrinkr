@@ -20,7 +20,7 @@ Description:
     model fitting (Stage 1) from hierarchical shrinkage (Stage 2), enabling
     modular sensitivity analyses without refitting expensive MCMC chains.
     Supports flexible prior specifications through the distributional package,
-    mixture approximations via mclust, and efficient Stan-based inference.
+    mixture approximations via 'mclust', and efficient 'Stan'-based inference.
 License: GPL (>= 3)
 Encoding: UTF-8
 Depends: R (>= 4.1)
