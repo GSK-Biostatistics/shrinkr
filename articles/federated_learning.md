@@ -301,9 +301,9 @@ print(fit_full_post)
 #> # A tibble: 3 × 7
 #>   variable         mean       sd         q2.5       q50    q97.5  rhat
 #>   <chr>           <dbl>    <dbl>        <dbl>     <dbl>    <dbl> <dbl>
-#> 1 mu          0.0496    0.00717  0.0351       0.0498    0.0636    1.00
-#> 2 tau         0.00624   0.00520  0.000263     0.00493   0.0195    1.00
-#> 3 tau_squared 0.0000660 0.000119 0.0000000689 0.0000243 0.000381  1.00
+#> 1 mu          0.0497    0.00731  0.0347       0.0498    0.0641    1.00
+#> 2 tau         0.00632   0.00530  0.000276     0.00497   0.0195    1.00
+#> 3 tau_squared 0.0000680 0.000119 0.0000000764 0.0000247 0.000379  1.00
 
 # Network-level estimates
 mu_tau_full <- extract_mu_tau(fit_full_post)
@@ -311,16 +311,16 @@ cat("\nNetwork-level age effect (mu):\n")
 #> 
 #> Network-level age effect (mu):
 cat("  Posterior mean:", round(mean(mu_tau_full$mu), 4), "\n")
-#>   Posterior mean: 0.0496
+#>   Posterior mean: 0.0497
 cat("  95% CI: [", round(quantile(mu_tau_full$mu, 0.025), 4), ",",
     round(quantile(mu_tau_full$mu, 0.975), 4), "]\n")
-#>   95% CI: [ 0.0351 , 0.0636 ]
+#>   95% CI: [ 0.0347 , 0.0641 ]
 
 cat("\nBetween-site heterogeneity (tau):\n")
 #> 
 #> Between-site heterogeneity (tau):
 cat("  Posterior mean:", round(mean(mu_tau_full$tau), 4), "\n")
-#>   Posterior mean: 0.0062
+#>   Posterior mean: 0.0063
 cat("  95% CI: [", round(quantile(mu_tau_full$tau, 0.025), 4), ",",
     round(quantile(mu_tau_full$tau, 0.975), 4), "]\n")
 #>   95% CI: [ 3e-04 , 0.0195 ]
@@ -495,12 +495,12 @@ comparison <- data.frame(
 
 print(comparison)
 #>   parameter full_posteriors summaries_only   difference
-#> 1        mu     0.049595359    0.049744508 1.491484e-04
-#> 2       tau     0.006242385    0.006248864 6.478663e-06
+#> 1        mu     0.049671923    0.049744508 7.258463e-05
+#> 2       tau     0.006318975    0.006248864 7.011127e-05
 
 cat("\nMaximum difference:", round(max(comparison$difference), 5), "\n")
 #> 
-#> Maximum difference: 0.00015
+#> Maximum difference: 7e-05
 ```
 
 **Conclusion**: Both paths give nearly identical results **because**
@@ -561,19 +561,19 @@ uncertainty_comparison <- data.frame(
 
 print(uncertainty_comparison)
 #>                   site n_patients  stage1_se   stage2_se reduction_pct
-#> 1        Metro General       1500 0.01428679 0.008272696      42.09548
-#> 2      County Regional        800 0.01992675 0.008979639      54.93675
-#> 3   University Medical       2200 0.01246048 0.007916911      36.46382
-#> 4   Community Hospital        350 0.03047231 0.010540811      65.40856
-#> 5     Veterans Affairs       1100 0.01752091 0.009019055      48.52405
-#> 6 Children's Specialty        900 0.01888196 0.009357809      50.44048
+#> 1        Metro General       1500 0.01428679 0.008509725      40.43641
+#> 2      County Regional        800 0.01992675 0.009409275      52.78068
+#> 3   University Medical       2200 0.01246048 0.008110793      34.90785
+#> 4   Community Hospital        350 0.03047231 0.010262076      66.32328
+#> 5     Veterans Affairs       1100 0.01752091 0.009254995      47.17743
+#> 6 Children's Specialty        900 0.01888196 0.009187466      51.34263
 #>   stage1_ci_width stage2_ci_width ci_width_reduction
-#> 1      0.05600421      0.03242897           42.09548
-#> 2      0.07811285      0.03520019           54.93675
-#> 3      0.04884507      0.03103429           36.46382
-#> 4      0.11945147      0.04131998           65.40856
-#> 5      0.06868197      0.03535470           48.52405
-#> 6      0.07401729      0.03668261           50.44048
+#> 1      0.05600421      0.03335812           40.43641
+#> 2      0.07811285      0.03688436           52.78068
+#> 3      0.04884507      0.03179431           34.90785
+#> 4      0.11945147      0.04022734           66.32328
+#> 5      0.06868197      0.03627958           47.17743
+#> 6      0.07401729      0.03601487           51.34263
 ```
 
 **Largest improvements** occur in smaller sites.
@@ -902,9 +902,9 @@ tau_alt <- mean(extract_mu_tau(fit_alt)$tau)
 cat("Sensitivity to prior on tau:\n")
 #> Sensitivity to prior on tau:
 cat("  mu: Base =", round(mu_base, 4), ", Alternative =", round(mu_alt, 4), "\n")
-#>   mu: Base = 0.0496 , Alternative = 0.0502
+#>   mu: Base = 0.0497 , Alternative = 0.0496
 cat("  tau: Base =", round(tau_base, 4), ", Alternative =", round(tau_alt, 4), "\n")
-#>   tau: Base = 0.0062 , Alternative = 0.0085
+#>   tau: Base = 0.0063 , Alternative = 0.0082
 ```
 
 ### 6. Transparent Reporting
@@ -935,26 +935,26 @@ cat("\nFederated Learning Results Report\n")
 cat("==================================\n\n")
 #> ==================================
 cat("Network-level estimate (mu):", round(mean(mu_tau_full$mu), 4), "\n")
-#> Network-level estimate (mu): 0.0496
+#> Network-level estimate (mu): 0.0497
 cat("Between-site heterogeneity (tau):", round(mean(mu_tau_full$tau), 4), "\n\n")
-#> Between-site heterogeneity (tau): 0.0062
+#> Between-site heterogeneity (tau): 0.0063
 cat("Site-specific calibrated estimates:\n")
 #> Site-specific calibrated estimates:
 print(site_report)
 #>                   site original_estimate original_se calibrated_estimate
-#> 1        Metro General            0.0496      0.0143              0.0497
-#> 2      County Regional            0.0591      0.0199              0.0506
-#> 3   University Medical            0.0448      0.0125              0.0486
-#> 4   Community Hospital            0.0108      0.0305              0.0474
-#> 5     Veterans Affairs            0.0678      0.0175              0.0522
+#> 1        Metro General            0.0496      0.0143              0.0498
+#> 2      County Regional            0.0591      0.0199              0.0507
+#> 3   University Medical            0.0448      0.0125              0.0488
+#> 4   Community Hospital            0.0108      0.0305              0.0477
+#> 5     Veterans Affairs            0.0678      0.0175              0.0520
 #> 6 Children's Specialty            0.0468      0.0189              0.0493
 #>   calibrated_se uncertainty_reduction
-#> 1        0.0083               42.0955
-#> 2        0.0090               54.9368
-#> 3        0.0079               36.4638
-#> 4        0.0105               65.4086
-#> 5        0.0090               48.5241
-#> 6        0.0094               50.4405
+#> 1        0.0085               40.4364
+#> 2        0.0094               52.7807
+#> 3        0.0081               34.9078
+#> 4        0.0103               66.3233
+#> 5        0.0093               47.1774
+#> 6        0.0092               51.3426
 ```
 
 ## Advantages of shrinkr for Federated Learning
