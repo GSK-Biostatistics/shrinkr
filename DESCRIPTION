@@ -1,8 +1,8 @@
 Package: shrinkr
 Type: Package
 Title: Modular Bayesian Hierarchical Shrinkage Models
-Version: 0.4.3
-Date: 2026-05-06
+Version: 0.4.4
+Date: 2026-06-15
 Authors@R: c(
     person(given = c("Jacob", "M."),
            family = "Maronge",
@@ -40,7 +40,4 @@ URL: https://gsk-biostatistics.github.io/shrinkr/
 BugReports: https://github.com/GSK-Biostatistics/shrinkr/issues
 VignetteBuilder: knitr
 NeedsCompilation: yes
-Packaged: 2026-04-09 16:37:19 UTC; jmm04498
-Author: Jacob M. Maronge [aut, cre]
-Maintainer: Jacob M. Maronge <jacob.m.maronge@gsk.com>
 Config/roxygen2/version: 8.0.0

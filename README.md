@@ -278,7 +278,7 @@ summarize_mu_tau(fit)
 - `vignette("tidy_bayesian_workflow")`: Tidy workflows with tidybayes, posterior, and bayesplot
 - `vignette("brms_integration")`: Working with brms models (survival analysis example)
 - `vignette("federated_learning")`: Using shrinkr in the context of federated learning
-
+- `vignette("map_prior_with_beastt")`: Building meta-analytic-predictive (MAP) priors with `shrinkr` and `beastt`
 ---
 
 ## Mathematical Foundation
@@ -387,8 +387,7 @@ For questions and issues:
 
 This package is licensed under the GNU General Public License v3.0 or later
 (GPL-3.0-or-later). You are free to use, modify, and redistribute it under
-the terms of the GPL. See the [LICENSE](LICENSE) file for the full text, or
-visit <https://www.gnu.org/licenses/gpl-3.0.html>.
+the terms of the GPL. For the full text visit <https://www.gnu.org/licenses/gpl-3.0.html>.
 
 Portions of this package are derived from templates provided by the
 [rstantools](https://mc-stan.org/rstantools/) project (Copyright © Trustees

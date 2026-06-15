@@ -24,7 +24,7 @@
 #'   At least **two** groups/variables are required for hierarchical shrinkage. 
 #'   Non-numeric columns in data frames are automatically dropped. Rows with 
 #'   missing values are removed before fitting.
-#' @param K_max Integer (≥ 1). Maximum number of mixture components to consider
+#' @param K_max Integer \eqn{(\ge 1)}. Maximum number of mixture components to consider
 #'   during model selection by BIC. Internally capped at `n - 1` for stability.
 #' @param verbose Logical. If `TRUE`, progress and diagnostic messages are printed.
 #' @param model_names Optional character vector of \pkg{mclust} covariance model
@@ -145,7 +145,7 @@ fit_mixture <- function(samples,
   X <- .coerce_draws_df(samples)
   stopifnot(is.data.frame(X))
   
-  # Require ≥ 2 variables
+  # Require >= 2 variables
   if (ncol(X) < 2L) {
     cli::cli_abort("{.fn fit_mixture} requires at least two variables; shrinkage is undefined with one")
   }

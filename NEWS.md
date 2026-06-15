@@ -1,3 +1,28 @@
+# shrinkr 0.4.4
+
+## New Features
+
+* **New vignette: `vignette("map_prior_with_beastt")`.** Demonstrates how to
+  build a robust meta-analytic-predictive (MAP) prior by pairing shrinkr with
+  the `beastt` package. shrinkr runs the hierarchical meta-analysis across
+  historical control arms and returns the MAP as a `distributional` object,
+  which `beastt` then robustifies (`robustify_norm()`) and combines with the
+  internal control arm (`calc_post_norm()`) to form the control posterior and
+  report an effective sample size. The worked example uses a continuous outcome
+  with known SD, and the prior is calibrated with
+  `sample_prior_predictive()` / `prior_pairwise_differences()`.
+
+## Documentation
+
+* Added the new MAP-prior vignette to the website articles index and the README
+  Documentation section.
+* Minor documentation fixes ahead of CRAN submission: package version
+  references synchronized to 0.4.4, and small cross-reference and formatting
+  tidy-ups in roxygen docs and man pages.
+
+---
+
+
 # shrinkr 0.4.3
  
 ## Bug Fixes
