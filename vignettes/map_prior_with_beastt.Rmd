@@ -24,175 +24,114 @@ knitr::opts_chunk$set(
 
 A **meta-analytic-predictive (MAP) prior** summarizes several historical
 control arms into a single prior for the control mean of a new trial
-(Neuenschwander et al., 2010). The recipe is a random-effects meta-analysis:
+(Neuenschwander et al., 2010). It is a random-effects meta-analysis:
 study-specific control means are treated as exchangeable draws from a common
 population, and the prior for the next trial is the posterior predictive
-distribution for a new, as-yet-unobserved study. To protect against prior-data
-conflict, the MAP is then robustified by mixing in a vague component
-(Schmidli et al., 2014), so that the historical data are automatically
-down-weighted when they disagree with the current trial.
+distribution for a new, as-yet-unobserved study. To guard against prior-data
+conflict, the MAP is then *robustified* with a vague mixture component
+(Schmidli et al., 2014), so the historical data are automatically down-weighted
+when they disagree with the current trial.
 
-This vignette shows how `shrinkr` and `beastt` divide that work cleanly:
+`shrinkr` and `beastt` split this work cleanly:
 
-- **`shrinkr`** runs the hierarchical meta-analysis across historical studies
-  (its Stage-2 shrinkage step) and returns the MAP as a `distributional`
-  object.
-- **`beastt`** turns that MAP into a robust mixture prior
-  (`robustify_norm()`), combines it with the internal control arm to form the
-  posterior (`calc_post_norm()`), and computes the effective sample size (ESS).
+- **`shrinkr`** runs the hierarchical meta-analysis across the historical
+  studies and returns the MAP as a `distributional` object.
+- **`beastt`** robustifies that MAP (`robustify_norm()`), combines it with the
+  internal control arm to form the posterior (`calc_post_norm()`), and reports
+  the effective sample size (ESS).
 
-The two packages meet at a single, intentionally simple hand-off: a `dist_normal`
-object. Everything upstream of it is hierarchical modeling (`shrinkr`);
-everything downstream is borrowing and inference for the current trial
-(`beastt`).
-
-We focus on a continuous outcome with **known** within-arm standard deviation,
-which keeps every step conjugate and lets us see the moving parts without
-Stan getting in the way.
+The hand-off between them is a single `dist_normal` object. We use a continuous
+outcome with **known** within-arm SD, which keeps every step conjugate.
 
 ```{r libraries}
 library(shrinkr)
 library(beastt)
 library(distributional)
-library(dplyr)
 library(tibble)
 library(ggplot2)
 
 set.seed(1104)
+sigma_known <- 2   # known within-arm response SD (same in all arms)
 ```
 
-## Setting
+## The historical evidence
 
-Imagine we are designing a new trial and want to borrow from six historical
-studies that each reported a control arm. We have a current ("internal")
-control arm of 70 patients, and we assume a known response SD
-(`sigma = 2`) in every arm.
+A MAP prior starts from what the historical studies *reported*: a control-arm
+mean and its standard error. Here we have six prior studies whose control means
+cluster fairly tightly around 10. With a known SD, each standard error is just
+`sigma / sqrt(n)`.
 
-```{r truth}
-sigma_known <- 2      # known within-arm response SD (same in all arms)
-mu_grand    <- 10     # true population-level control mean
-tau_true    <- 1.2    # true between-study SD (genuine heterogeneity)
-```
-
-The historical studies are *not* identical: each has its own underlying
-control mean drawn around the grand mean, which is precisely the
-between-study heterogeneity a MAP prior is meant to capture.
-
-```{r simulate-historical}
-hist_specs <- tibble(
+```{r hist-data}
+n_hist <- c(58, 43, 62, 51, 47, 55)
+hist <- tibble(
   study = paste0("H", 1:6),
-  n     = c(55, 40, 65, 30, 50, 45),
-  # study-specific true means ~ N(mu_grand, tau_true^2)
-  theta = rnorm(6, mu_grand, tau_true)
+  n     = n_hist,
+  ybar  = c(9.9, 10.3, 9.7, 10.1, 10.4, 9.8),
+  se    = sigma_known / sqrt(n_hist)
 )
-
-# Simulate patient-level control data for each historical study, then reduce
-# each study to the summary a publication would actually report: a mean and
-# its standard error. (With known sigma, se = sigma / sqrt(n).)
-hist_summ <- hist_specs %>%
-  rowwise() %>%
-  mutate(
-    ybar = mean(rnorm(n, theta, sigma_known)),
-    se   = sigma_known / sqrt(n)
-  ) %>%
-  ungroup() %>%
-  select(study, n, ybar, se)
-
-hist_summ
+hist
 ```
 
-```{r simulate-internal}
-# The current trial's control arm.
-n_int   <- 70
-int_ctrl <- tibble(
-  subjid = seq_len(n_int),
-  y      = rnorm(n_int, mu_grand, sigma_known)
-)
-```
-
-A quick forest-style look at the historical evidence we are about to pool:
-
-```{r forest, fig.height = 3.6}
-ggplot(hist_summ, aes(x = study, y = ybar)) +
-  geom_hline(yintercept = mean(hist_summ$ybar), linetype = "dashed",
-             color = "grey50") +
+```{r forest, fig.height = 3.4}
+ggplot(hist, aes(study, ybar)) +
+  geom_hline(yintercept = mean(hist$ybar), linetype = "dashed", color = "grey50") +
   geom_pointrange(aes(ymin = ybar - 1.96 * se, ymax = ybar + 1.96 * se),
                   color = "steelblue", linewidth = 0.8) +
-  labs(x = NULL, y = "Control mean",
-       title = "Historical control arms",
-       caption = "Points: study means; bars: 95% intervals; dashed: simple average") +
+  labs(x = NULL, y = "Control mean", title = "Historical control arms") +
   theme_minimal(base_size = 12)
 ```
 
-## Stage 1: per-study estimates
+The current trial contributes its own control arm of 70 patients:
 
-`shrinkr` uses a two-stage workflow. **Stage 1** produces a per-group estimate
-of the quantity to be shrunk — here, each study's control mean — using a flat
-prior, so that all of the shrinkage happens in Stage 2. With a known SD and a
-flat prior on the mean, each study's Stage-1 posterior is exactly
-$N(\bar y_g,\, se_g^2)$, so the published summaries `(ybar, se)` *are*
-the Stage-1 result. No model fitting is required, and we can pass them straight
-to `shrink()` through its summary-statistics interface.
+```{r internal-data}
+n_int    <- 70
+int_ctrl <- tibble(y = rnorm(n_int, mean = 10, sd = sigma_known))
+```
 
-## Stage 2: hierarchical meta-analysis with `shrinkr`
+## Hierarchical meta-analysis with `shrinkr`
 
-The hierarchical model is
+With a known SD and a flat Stage-1 prior, each study's posterior for its control
+mean is exactly `N(ybar, se^2)` — so the reported summaries *are* the Stage-1
+result, and we can hand them straight to `shrink()`. The hierarchical model is
 
 $$
 \hat\theta_g \mid \theta_g \sim N(\theta_g,\, se_g^2), \qquad
 \theta_g \mid \mu, \tau \sim N(\mu, \tau^2),
 $$
 
-with priors on the population mean `mu` and the between-study SD `tau`. We use
-a vague prior on `mu` and a weakly-informative half-normal on `tau`.
+with a vague prior on the population mean `mu` and a weakly-informative
+half-normal on the between-study SD `tau`.
 
 ```{r priors}
 hierarchical_priors <- list(
-  mu  = dist_normal(0, 100),                                  # vague location
-  tau = dist_truncated(dist_normal(0, sigma_known / 2),       # half-normal
-                       lower = 0)
+  mu  = dist_normal(0, 100),
+  tau = dist_truncated(dist_normal(0, sigma_known / 4), lower = 0)
 )
 ```
 
-### Check what the heterogeneity prior implies
-
-Before fitting, it is worth seeing what the prior on `tau` implies about
-differences *between* study means. `sample_prior_predictive()` draws
-`(mu, tau)` and then study effects `theta_g = mu + tau * z_g`;
-`prior_pairwise_differences()` summarizes the implied $|\theta_i - \theta_j|$.
-Because the location `mu` cancels in any difference, these diagnostics isolate
-the heterogeneity prior even though `mu` is vague.
+It is worth checking what that `tau` prior implies about differences *between*
+study means before fitting. `sample_prior_predictive()` draws study effects and
+`prior_pairwise_differences()` summarizes the implied `|theta_i - theta_j|`
+(the location `mu` cancels, so this isolates heterogeneity even though `mu` is
+vague).
 
 ```{r prior-predictive}
-prior_pred <- sample_prior_predictive(
-  hierarchical_priors = hierarchical_priors,
-  n_groups = nrow(hist_summ),
-  n_draws  = 2000
-)
-
-pw <- prior_pairwise_differences(prior_pred)
-print(pw)
-plot(pw)
+prior_pred <- sample_prior_predictive(hierarchical_priors,
+                                      n_groups = nrow(hist), n_draws = 2000)
+plot(prior_pairwise_differences(prior_pred))
 ```
 
-The pairwise summary lets us sanity-check the prior on a clinical scale: are
-differences of a few units between historical control means plausible but
-large differences unlikely? If the implied spread looks unreasonable, adjust
-the `tau` prior here — not after seeing the results.
+If that spread looks unreasonable on the clinical scale, adjust the `tau` prior
+now. Then fit, passing the study summaries through `shrink()`'s `mle` /
+`var_matrix` interface.
 
-### Fit
-
-`shrinkr`'s `shrink()` accepts study summaries directly via `mle` (the point
-estimates) and `var_matrix` (a vector of per-study variances, treated as
-independent).
-
-```{r fit-shrink, results = "hide"}
+```{r fit, results = "hide"}
 fit_map <- shrink(
-  mle                 = hist_summ$ybar,
-  var_matrix          = hist_summ$se^2,
+  mle                 = hist$ybar,
+  var_matrix          = hist$se^2,
   hierarchical_priors = hierarchical_priors,
-  chains  = 4, iter = 4000, warmup = 1000,
-  seed    = 2026, refresh = 0, verbose = FALSE
+  chains = 4, iter = 4000, warmup = 1000,
+  seed = 2026, refresh = 0, verbose = FALSE
 )
 ```
 
@@ -200,141 +139,95 @@ fit_map <- shrink(
 summarize_mu_tau(fit_map)
 ```
 
-`mu` is the borrowed estimate of the population control mean and `tau` is the
-estimated between-study heterogeneity.
+## Building the MAP prior
 
-## Constructing the MAP prior
-
-The MAP prior is the posterior **predictive** distribution for a new study's
-control mean. Marginalizing over the posterior of `(mu, tau)`, a Normal
-approximation has
-
-$$
-\text{mean} = \mathbb{E}[\mu \mid \text{data}], \qquad
-\text{variance} = \mathrm{Var}(\mu \mid \text{data}) + \mathbb{E}[\tau^2 \mid \text{data}].
-$$
-
-`extract_mu_tau()` returns posterior draws of `mu`, `tau`, and `tau_squared`,
-so the MAP is a one-liner.
+The MAP is the posterior **predictive** distribution for a new study's control
+mean. Marginalizing over `(mu, tau)`, the Normal approximation has mean
+`E[mu]` and variance `Var(mu) + E[tau^2]` — the second term is the predictive
+spread from heterogeneity, which is what keeps a MAP honestly wider than a
+simple pooled mean.
 
 ```{r make-map}
 make_map <- function(fit) {
   d <- extract_mu_tau(fit)
-  dist_normal(mean(d$mu), sqrt(stats::var(d$mu) + mean(d$tau_squared)))
+  dist_normal(mean(d$mu), sqrt(var(d$mu) + mean(d$tau_squared)))
 }
 
 map_prior <- make_map(fit_map)
 map_prior
 ```
 
-The MAP's variance has two pieces: our remaining uncertainty about the central
-location (`Var(mu)`) *plus* the predictive spread from genuine heterogeneity
-(`E[tau^2]`). That second term is what keeps a MAP honestly wider than a naive
-pooled mean.
-
-It is useful to express the MAP's informativeness as a prior **effective
-sample size** — for a Normal prior on a mean with known `sigma`, that is
-`sigma^2 / Var(prior)`, i.e., how many control patients the prior is "worth".
+A convenient way to read the MAP's strength is its prior **effective sample
+size**: for a Normal prior on a mean with known SD, that is
+`sigma^2 / Var(prior)` — how many control patients the prior is "worth".
 
 ```{r map-ess}
-prior_ess <- function(prior, sigma) sigma^2 / variance(prior)
-
-cat(sprintf("MAP prior: mean = %.2f, sd = %.2f, prior ESS = %.1f patients\n",
-            mean(map_prior), sqrt(variance(map_prior)),
-            prior_ess(map_prior, sigma_known)))
+map_ess <- sigma_known^2 / variance(map_prior)
+map_ess
 ```
 
-## Robustifying with `beastt`
+## Robustify and form the posterior with `beastt`
 
-A MAP prior assumes the new trial is exchangeable with the historical ones. If
-that turns out to be wrong, an un-robustified MAP can bias the analysis. The
-standard fix (Schmidli et al., 2014) is a **robust mixture prior**: mix the MAP
-("informative" component) with a vague component, so the data can overrule the
-prior when they conflict.
-
-`beastt::robustify_norm()` does this. Its `n` argument scales the vague
-component's variance; passing the MAP's prior ESS makes the vague component
-worth a single patient's information (a "unit-information" prior), which is the
-conventional choice. We place equal 0.5/0.5 weight on the two components.
+`robustify_norm()` mixes the MAP ("informative") with a vague component so the
+data can overrule the prior under conflict. Passing the MAP's prior ESS as `n`
+makes the vague component a unit-information prior (variance `sigma^2`); we put
+equal weight on the two components.
 
 ```{r robustify}
-map_ess <- prior_ess(map_prior, sigma_known)
-rmp <- robustify_norm(map_prior, n = map_ess, weights = c(0.5, 0.5))
+rmp         <- robustify_norm(map_prior, n = map_ess, weights = c(0.5, 0.5))
+vague_prior <- dist_normal(mix_means(rmp)[["vague"]], mix_sigmas(rmp)[["vague"]])
 
-plot_dist(
-  "MAP (informative)" = map_prior,
-  "Vague component"   = dist_normal(mix_means(rmp)[["vague"]],
-                                    mix_sigmas(rmp)[["vague"]]),
-  "Robust mixture"    = rmp
-)
+plot_dist("MAP (informative)" = map_prior,
+          "Vague component"   = vague_prior,
+          "Robust mixture"    = rmp)
 ```
 
-The robust mixture sits on top of the MAP but carries heavier tails, courtesy
-of the vague component — that is the insurance against prior-data conflict.
-
-## The internal control posterior
-
-Now we combine the robust mixture prior with the current trial's control arm
-using `calc_post_norm()`. With a known SD, the posterior is again a mixture of
-normals, and `beastt` updates the mixture weights for us — automatically
-down-weighting the informative component if the internal data disagree with it.
+Now combine the robust mixture with the internal control arm. With a known SD
+the posterior is again a mixture of normals, and `beastt` updates the mixture
+weights automatically — down-weighting the informative component if the internal
+data disagree with it. The no-borrowing reference simply uses the vague
+component alone.
 
 ```{r posterior}
-post_borrow <- calc_post_norm(
-  internal_data = int_ctrl,
-  response      = y,
-  prior         = rmp,
-  internal_sd   = sigma_known
-)
+post_borrow <- calc_post_norm(int_ctrl, response = y,
+                              prior = rmp, internal_sd = sigma_known)
+post_nobrrw <- calc_post_norm(int_ctrl, response = y,
+                              prior = vague_prior, internal_sd = sigma_known)
 
-# A no-borrowing reference: use only the vague component as the prior.
-vague_prior <- dist_normal(mix_means(rmp)[["vague"]], mix_sigmas(rmp)[["vague"]])
-post_nobrrw <- calc_post_norm(
-  internal_data = int_ctrl,
-  response      = y,
-  prior         = vague_prior,
-  internal_sd   = sigma_known
-)
-
-plot_dist(
-  "No borrowing"          = post_nobrrw,
-  "Borrowing (robust MAP)" = post_borrow
-)
+plot_dist("No borrowing"           = post_nobrrw,
+          "Borrowing (robust MAP)" = post_borrow)
 ```
 
-How much did borrowing buy us? The effective sample size compares the posterior
-variance with and without borrowing (Pennello & Thompson, 2008): if the
-no-borrowing posterior from `n_int` patients has variance `V0`, a borrowed
-posterior with variance `Vb` is as informative as `n_int * V0 / Vb` patients.
+The effective sample size compares posterior variance with and without
+borrowing (Pennello & Thompson, 2008): a borrowed posterior with variance `Vb`
+is as informative as `n_int * V0 / Vb` patients.
 
 ```{r ess-table}
 ess_post <- n_int * variance(post_nobrrw) / variance(post_borrow)
 
 tibble(
-  quantity = c("Posterior mean", "Posterior SD", "Effective sample size"),
-  `No borrowing` = c(mean(post_nobrrw), sqrt(variance(post_nobrrw)), n_int),
-  `Robust MAP`   = c(mean(post_borrow), sqrt(variance(post_borrow)), ess_post)
-) %>%
-  mutate(across(where(is.numeric), ~round(., 3)))
+  quantity     = c("Posterior mean", "Posterior SD", "Effective sample size"),
+  no_borrowing = round(c(mean(post_nobrrw), sqrt(variance(post_nobrrw)), n_int), 2),
+  robust_map   = round(c(mean(post_borrow), sqrt(variance(post_borrow)), ess_post), 2)
+)
 ```
 
-When the historical and internal data are compatible (as here), the robust MAP
-sharpens the control posterior and lifts the effective sample size above the 70
-internal controls. Under a prior-data conflict, the mixture weight on the
-informative component would drop and the ESS gain would shrink toward zero —
-exactly the self-correcting behavior we want.
+Because the historical and internal data are compatible, the robust MAP sharpens
+the control posterior and lifts the effective sample size well above the 70
+internal controls. Under a prior-data conflict the informative component would
+lose weight and that gain would shrink toward zero — the self-correcting
+behavior the robust mixture is there to provide.
 
 ## Summary
 
-- Use **`shrinkr`** to run the hierarchical meta-analysis across historical
-  studies and build the MAP as a `dist_normal` predictive distribution, passing
-  the study summaries through the `mle` / `var_matrix` interface.
-- Use **`beastt`** to `robustify_norm()` the MAP, form the internal control
-  posterior with `calc_post_norm()`, and report the effective sample size.
-- Always interrogate the heterogeneity prior with
-  `sample_prior_predictive()` / `prior_pairwise_differences()` before fitting,
-  and lean on the robust mixture so the data can overrule the historical
-  evidence when they disagree.
+- **`shrinkr`** runs the hierarchical meta-analysis and builds the MAP as a
+  `dist_normal`, taking study summaries through the `mle` / `var_matrix`
+  interface.
+- **`beastt`** robustifies it (`robustify_norm()`), forms the internal control
+  posterior (`calc_post_norm()`), and reports the ESS.
+- Check the heterogeneity prior with `sample_prior_predictive()` /
+  `prior_pairwise_differences()` before fitting, and lean on the robust mixture
+  so the data can overrule the historical evidence when they disagree.
 
 ## References
 
@@ -348,7 +241,3 @@ trials with historical control information. *Biometrics*, 70(4), 1023–1032.
 
 Pennello, G., & Thompson, L. (2008). Experience with reviewing Bayesian medical
 device trials. *Journal of Biopharmaceutical Statistics*, 18(1), 81–115.
-
-```{r session-info}
-sessionInfo()
-```
