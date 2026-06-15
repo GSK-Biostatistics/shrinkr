@@ -279,6 +279,7 @@ summarize_mu_tau(fit)
 - `vignette("brms_integration")`: Working with brms models (survival analysis example)
 - `vignette("federated_learning")`: Using shrinkr in the context of federated learning
 - `vignette("map_prior_with_beastt")`: Building meta-analytic-predictive (MAP) priors with `shrinkr` and `beastt`
+
 ---
 
 ## Mathematical Foundation
@@ -370,7 +371,7 @@ If you use `shrinkr` in your work, please cite:
 
 ```
 Maronge, J. M. (2026). shrinkr: Modular Bayesian Hierarchical Shrinkage Models. 
-R package version 0.4.3.
+R package version 0.4.4.
 ```
 
 ---
