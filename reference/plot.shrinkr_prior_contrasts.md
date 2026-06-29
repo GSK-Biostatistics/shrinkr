@@ -39,21 +39,11 @@ A ggplot2 object.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-library(distributional)
-
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 1), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 )
-
-prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 2000)
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 pw <- prior_pairwise_differences(prior_pred)
-
-# Pooled density
 plot(pw)
-
-# Faceted by pair
-plot(pw, by_pair = TRUE)
-} # }
 ```

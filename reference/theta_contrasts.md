@@ -43,33 +43,40 @@ contrast.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-fit <- shrink(mixture = mix, hierarchical_priors = priors)
-
-# Pairwise contrast: group 2 vs group 1
-L <- matrix(c(-1, 1, 0, 0), nrow = 1)
-contrast <- theta_contrasts(fit, L, labels = "Trt2_vs_Trt1")
-
-# Multiple contrasts
-L <- rbind(
-  c(-1, 1, 0, 0),   # Group 2 vs 1
-  c(-1, 0, 1, 0),   # Group 3 vs 1
-  c(0, -1, 1, 0)    # Group 3 vs 2
+set.seed(1)
+draws <- data.frame(
+  mu = rnorm(20, 0.2, 0.05),
+  tau = abs(rnorm(20, 0.3, 0.03)),
+  `theta[1]` = rnorm(20, 0.0, 0.1),
+  `theta[2]` = rnorm(20, 0.3, 0.1),
+  `theta[3]` = rnorm(20, 0.5, 0.1),
+  check.names = FALSE
 )
-contrasts <- theta_contrasts(
-  fit, L,
-  labels = c("2vs1", "3vs1", "3vs2")
+draws$tau_squared <- draws$tau^2
+fit <- list(
+  fit = posterior::as_draws_df(draws),
+  data = list(
+    G = 3, K = 1, centered = FALSE,
+    vars = c("group1", "group2", "group3"),
+    quantiles = data.frame(
+      q2.5 = c(-0.20, 0.10, 0.30),
+      q50 = c(0.00, 0.30, 0.50),
+      q97.5 = c(0.20, 0.50, 0.70)
+    )
+  ),
+  summary = posterior::summarise_draws(
+    posterior::as_draws_df(draws),
+    "mean", "sd",
+    ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+  ),
+  diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
 )
-
-# Summarize contrasts
-library(posterior)
-summarise_draws(contrasts)
-
-# Visualize
-library(bayesplot)
-mcmc_areas(contrasts, regex_pars = ".*")
-
-# Probability that contrast > 0
-mean(contrasts$`2vs1` > 0)
-} # }
+class(fit) <- "shrinkr_fit"
+L <- matrix(c(-1, 1, 0), nrow = 1)
+contrast <- theta_contrasts(fit, L, labels = "group2_vs_group1")
+posterior::summarise_draws(contrast)
+#> # A tibble: 1 × 10
+#>   variable         mean median    sd    mad     q5   q95  rhat ess_bulk ess_tail
+#>   <chr>           <dbl>  <dbl> <dbl>  <dbl>  <dbl> <dbl> <dbl>    <dbl>    <dbl>
+#> 1 group2_vs_grou… 0.296  0.304 0.118 0.0756 0.0805 0.436  1.06     17.1     20.4
 ```

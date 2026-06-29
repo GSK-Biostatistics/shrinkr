@@ -116,33 +116,11 @@ A ggplot2 object (for `type = "shrinkage"`), or a patchwork object/list
 ## Examples
 
 ``` r
+# Plotting requires a fitted shrinkr_fit object from shrink().
+# The full example is not run because it fits a Stan model.
 if (FALSE) { # \dontrun{
-library(distributional)
-
-# Fit model
-priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 2.5), lower = 0)
-)
 fit <- shrink(mixture = mix, hierarchical_priors = priors)
-
-# Basic shrinkage plot with side-by-side estimates
 plot(fit)
-plot(fit, type = "shrinkage")
-
-# Full diagnostics
-plot(fit, type = "diagnostics")
-
-# Customized shrinkage plot
-plot(
-  fit,
-  group_names = c("Control", "Low Dose", "Med Dose", "High Dose"),
-  show_arrows = TRUE,
-  interval_prob = 0.9,
-  dodge_width = 0.4
-)
-
-# Minimal version
-plot(fit, show_arrows = FALSE, show_intervals = FALSE)
+plot(fit, show_arrows = TRUE, interval_prob = 0.95)
 } # }
 ```

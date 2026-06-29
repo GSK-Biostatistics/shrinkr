@@ -144,30 +144,35 @@ extracting component data
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# Example with three groups
+set.seed(1)
 samples <- list(
-  group1 = matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-  group2 = matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-  group3 = matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+  group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+  group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1),
+  group3 = matrix(rnorm(100, 1.0, 0.5), ncol = 1)
 )
-
-# Let mclust choose K and covariance model via BIC:
-mix <- fit_mixture(samples, K_max = 5, verbose = TRUE)
-
-# View the fit
-mix
+mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 summary(mix)
-plot(mix, draws = samples)
-
-# Restrict to diagonal models only:
-mix_diag <- fit_mixture(samples, K_max = 5, model_names = c("EEI","VVI"))
-
-# Pass EM controls and initialization through ...
-mix_tuned <- fit_mixture(
-  samples, K_max = 5,
-  control = mclust::emControl(eps = 1e-6, itmax = 5e3),
-  initialization = list(hcPairs = TRUE)
-)
-} # }
+#> == Mixture Model Summary ============================
+#> 
+#> Model: XII 
+#> Components: 1 
+#> Log-likelihood: -205.559 
+#> BIC: -429.539 
+#> Parameters: 4 
+#> 
+#> Component weights:
+#> # A tibble: 1 × 2
+#>   component weight
+#>       <int>  <dbl>
+#> 1         1      1
+#> 
+#> Variable-wise summaries (weighted across components):
+#> # A tibble: 3 × 5
+#>   variable weighted_mean weighted_sd range_mean range_sd
+#>   <chr>            <dbl>       <dbl>      <dbl>    <dbl>
+#> 1 group1          0.0544       0.480          0        0
+#> 2 group2          0.481        0.480          0        0
+#> 3 group3          1.01         0.480          0        0
+#> 
+#> -----------------------------------------------------
 ```

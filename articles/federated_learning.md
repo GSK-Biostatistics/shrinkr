@@ -336,6 +336,7 @@ approximately normal.
 ``` r
 
 # Visual checks for approximate normality
+oldpar <- par(no.readonly = TRUE)
 par(mfrow = c(3, 2))
 for(i in 1:6) {
   site_name <- names(site_posteriors)[i]
@@ -351,7 +352,7 @@ for(i in 1:6) {
 
 ``` r
 
-par(mfrow = c(1, 1))
+par(oldpar)
 ```
 
 ``` r
@@ -415,6 +416,7 @@ var_mean <- mean(variance_posterior)
 var_se <- sd(variance_posterior)
 
 # Check normality
+oldpar <- par(no.readonly = TRUE)
 par(mfrow = c(1, 2))
 hist(variance_posterior, breaks = 30, main = "Variance Posterior",
      xlab = "sigma^2", col = "lightblue")
@@ -426,7 +428,7 @@ qqline(variance_posterior, col = "red", lwd = 2)
 
 ``` r
 
-par(mfrow = c(1, 1))
+par(oldpar)
 
 # Skewness
 skew <- mean((variance_posterior - var_mean)^3) / var_se^3
@@ -1037,7 +1039,7 @@ vignette("brms_integration")
 ``` r
 
 sessionInfo()
-#> R version 4.6.0 (2026-04-24)
+#> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
 #> Running under: Ubuntu 24.04.4 LTS
 #> 
@@ -1059,29 +1061,29 @@ sessionInfo()
 #> 
 #> other attached packages:
 #> [1] tidyr_1.3.2          ggplot2_4.0.3        dplyr_1.2.1         
-#> [4] posterior_1.7.0      distributional_0.7.1 shrinkr_0.4.4       
+#> [4] posterior_1.7.0      distributional_0.8.1 shrinkr_0.4.5       
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] tensorA_0.36.2.1      utf8_1.2.6            sass_0.4.10          
 #>  [4] generics_0.1.4        digest_0.6.39         magrittr_2.0.5       
-#>  [7] evaluate_1.0.5        grid_4.6.0            RColorBrewer_1.1-3   
+#>  [7] evaluate_1.0.5        grid_4.6.1            RColorBrewer_1.1-3   
 #> [10] fastmap_1.2.0         jsonlite_2.0.0        pkgbuild_1.4.8       
-#> [13] backports_1.5.1       mclust_6.1.2          gridExtra_2.3        
+#> [13] backports_1.5.1       mclust_6.1.2          gridExtra_2.3.1      
 #> [16] purrr_1.2.2           QuickJSR_1.10.0       scales_1.4.0         
 #> [19] codetools_0.2-20      textshaping_1.0.5     jquerylib_0.1.4      
 #> [22] abind_1.4-8           cli_3.6.6             rlang_1.2.0          
-#> [25] withr_3.0.2           cachem_1.1.0          yaml_2.3.12          
-#> [28] otel_0.2.0            StanHeaders_2.32.10   tools_4.6.0          
-#> [31] rstan_2.32.7          inline_0.3.21         parallel_4.6.0       
+#> [25] withr_3.0.3           cachem_1.1.0          yaml_2.3.12          
+#> [28] otel_0.2.0            StanHeaders_2.32.10   tools_4.6.1          
+#> [31] rstan_2.32.7          inline_0.3.21         parallel_4.6.1       
 #> [34] rstantools_2.6.0      checkmate_2.3.4       vctrs_0.7.3          
-#> [37] R6_2.6.1              matrixStats_1.5.0     stats4_4.6.0         
+#> [37] R6_2.6.1              matrixStats_1.5.0     stats4_4.6.1         
 #> [40] lifecycle_1.0.5       fs_2.1.0              htmlwidgets_1.6.4    
 #> [43] ragg_1.5.2            pkgconfig_2.0.3       desc_1.4.3           
 #> [46] pkgdown_2.2.0         RcppParallel_5.1.11-2 bslib_0.11.0         
-#> [49] pillar_1.11.1         gtable_0.3.6          loo_2.9.0            
+#> [49] pillar_1.11.1         gtable_0.3.6          loo_2.10.0           
 #> [52] glue_1.8.1            Rcpp_1.1.1-1.1        systemfonts_1.3.2    
-#> [55] xfun_0.58             tibble_3.3.1          tidyselect_1.2.1     
+#> [55] xfun_0.59             tibble_3.3.1          tidyselect_1.2.1     
 #> [58] knitr_1.51            farver_2.1.2          patchwork_1.3.2      
 #> [61] htmltools_0.5.9       labeling_0.4.3        rmarkdown_2.31       
-#> [64] compiler_4.6.0        S7_0.2.2
+#> [64] compiler_4.6.1        S7_0.2.2
 ```

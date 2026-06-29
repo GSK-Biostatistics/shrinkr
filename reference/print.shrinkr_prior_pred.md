@@ -34,20 +34,32 @@ for detailed summaries
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-library(distributional)
-
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 1), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 )
-
-prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 1000)
-
-# Print summary
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 print(prior_pred)
-
-# Or just type the object name
-prior_pred
-} # }
+#> == Prior Predictive Samples =========================
+#> 
+#> Draws:   50 
+#> Groups:  3 
+#> 
+#> Prior specifications:
+#>   mu:   N(0, 25) 
+#>   tau:  N(0, 1)[0,Inf) 
+#> 
+#> Hyperparameter summaries:
+#>   mu:  mean = -0.157 , sd = 5.474 , range = [ -14.445 , 12.488 ]
+#>   tau: mean = 0.879 , sd = 0.658 , range = [ 0.01 , 2.875 ]
+#> 
+#> Theta (by group):
+#>    group1 : mean = -0.209 , sd = 5.573 
+#>    group2 : mean = -0.06 , sd = 5.638 
+#>    group3 : mean = -0.019 , sd = 5.7 
+#> 
+#> -----------------------------------------------------
+#> Use plot() to visualize
+#> Use as.data.frame() for tidy format
+#> Use summary() for detailed statistics
 ```

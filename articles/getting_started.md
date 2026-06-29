@@ -329,8 +329,8 @@ fit <- shrink(
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 1).
 #> Chain 1: 
-#> Chain 1: Gradient evaluation took 1.2e-05 seconds
-#> Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.12 seconds.
+#> Chain 1: Gradient evaluation took 1.5e-05 seconds
+#> Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.15 seconds.
 #> Chain 1: Adjust your expectations accordingly!
 #> Chain 1: 
 #> Chain 1: 
@@ -357,15 +357,15 @@ fit <- shrink(
 #> Chain 1: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 1: 
-#> Chain 1:  Elapsed Time: 0.054 seconds (Warm-up)
-#> Chain 1:                0.041 seconds (Sampling)
-#> Chain 1:                0.095 seconds (Total)
+#> Chain 1:  Elapsed Time: 0.053 seconds (Warm-up)
+#> Chain 1:                0.04 seconds (Sampling)
+#> Chain 1:                0.093 seconds (Total)
 #> Chain 1: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 2).
 #> Chain 2: 
-#> Chain 2: Gradient evaluation took 4e-06 seconds
-#> Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.04 seconds.
+#> Chain 2: Gradient evaluation took 5e-06 seconds
+#> Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.05 seconds.
 #> Chain 2: Adjust your expectations accordingly!
 #> Chain 2: 
 #> Chain 2: 
@@ -392,15 +392,15 @@ fit <- shrink(
 #> Chain 2: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 2: 
-#> Chain 2:  Elapsed Time: 0.054 seconds (Warm-up)
+#> Chain 2:  Elapsed Time: 0.053 seconds (Warm-up)
 #> Chain 2:                0.03 seconds (Sampling)
-#> Chain 2:                0.084 seconds (Total)
+#> Chain 2:                0.083 seconds (Total)
 #> Chain 2: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 3).
 #> Chain 3: 
-#> Chain 3: Gradient evaluation took 4e-06 seconds
-#> Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.04 seconds.
+#> Chain 3: Gradient evaluation took 5e-06 seconds
+#> Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.05 seconds.
 #> Chain 3: Adjust your expectations accordingly!
 #> Chain 3: 
 #> Chain 3: 
@@ -427,15 +427,15 @@ fit <- shrink(
 #> Chain 3: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 3: 
-#> Chain 3:  Elapsed Time: 0.055 seconds (Warm-up)
+#> Chain 3:  Elapsed Time: 0.053 seconds (Warm-up)
 #> Chain 3:                0.034 seconds (Sampling)
-#> Chain 3:                0.089 seconds (Total)
+#> Chain 3:                0.087 seconds (Total)
 #> Chain 3: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 4).
 #> Chain 4: 
-#> Chain 4: Gradient evaluation took 4e-06 seconds
-#> Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.04 seconds.
+#> Chain 4: Gradient evaluation took 5e-06 seconds
+#> Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.05 seconds.
 #> Chain 4: Adjust your expectations accordingly!
 #> Chain 4: 
 #> Chain 4: 
@@ -462,9 +462,9 @@ fit <- shrink(
 #> Chain 4: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 4: 
-#> Chain 4:  Elapsed Time: 0.051 seconds (Warm-up)
+#> Chain 4:  Elapsed Time: 0.05 seconds (Warm-up)
 #> Chain 4:                0.043 seconds (Sampling)
-#> Chain 4:                0.094 seconds (Total)
+#> Chain 4:                0.093 seconds (Total)
 #> Chain 4:
 
 print(fit)
@@ -556,8 +556,8 @@ fit_mle <- shrink(
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 1).
 #> Chain 1: 
-#> Chain 1: Gradient evaluation took 9e-06 seconds
-#> Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.09 seconds.
+#> Chain 1: Gradient evaluation took 8e-06 seconds
+#> Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.08 seconds.
 #> Chain 1: Adjust your expectations accordingly!
 #> Chain 1: 
 #> Chain 1: 
@@ -584,15 +584,15 @@ fit_mle <- shrink(
 #> Chain 1: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 1: 
-#> Chain 1:  Elapsed Time: 0.056 seconds (Warm-up)
-#> Chain 1:                0.04 seconds (Sampling)
-#> Chain 1:                0.096 seconds (Total)
+#> Chain 1:  Elapsed Time: 0.054 seconds (Warm-up)
+#> Chain 1:                0.038 seconds (Sampling)
+#> Chain 1:                0.092 seconds (Total)
 #> Chain 1: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 2).
 #> Chain 2: 
-#> Chain 2: Gradient evaluation took 4e-06 seconds
-#> Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.04 seconds.
+#> Chain 2: Gradient evaluation took 5e-06 seconds
+#> Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.05 seconds.
 #> Chain 2: Adjust your expectations accordingly!
 #> Chain 2: 
 #> Chain 2: 
@@ -619,15 +619,15 @@ fit_mle <- shrink(
 #> Chain 2: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 2: 
-#> Chain 2:  Elapsed Time: 0.054 seconds (Warm-up)
-#> Chain 2:                0.043 seconds (Sampling)
-#> Chain 2:                0.097 seconds (Total)
+#> Chain 2:  Elapsed Time: 0.051 seconds (Warm-up)
+#> Chain 2:                0.041 seconds (Sampling)
+#> Chain 2:                0.092 seconds (Total)
 #> Chain 2: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 3).
 #> Chain 3: 
-#> Chain 3: Gradient evaluation took 4e-06 seconds
-#> Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.04 seconds.
+#> Chain 3: Gradient evaluation took 6e-06 seconds
+#> Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.06 seconds.
 #> Chain 3: Adjust your expectations accordingly!
 #> Chain 3: 
 #> Chain 3: 
@@ -654,15 +654,15 @@ fit_mle <- shrink(
 #> Chain 3: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 3: 
-#> Chain 3:  Elapsed Time: 0.052 seconds (Warm-up)
-#> Chain 3:                0.044 seconds (Sampling)
-#> Chain 3:                0.096 seconds (Total)
+#> Chain 3:  Elapsed Time: 0.049 seconds (Warm-up)
+#> Chain 3:                0.042 seconds (Sampling)
+#> Chain 3:                0.091 seconds (Total)
 #> Chain 3: 
 #> 
 #> SAMPLING FOR MODEL 'stage2_shrinkage' NOW (CHAIN 4).
 #> Chain 4: 
-#> Chain 4: Gradient evaluation took 7e-06 seconds
-#> Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.07 seconds.
+#> Chain 4: Gradient evaluation took 5e-06 seconds
+#> Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.05 seconds.
 #> Chain 4: Adjust your expectations accordingly!
 #> Chain 4: 
 #> Chain 4: 
@@ -689,9 +689,9 @@ fit_mle <- shrink(
 #> Chain 4: Iteration: 1900 / 2000 [ 95%]  (Sampling)
 #> Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
 #> Chain 4: 
-#> Chain 4:  Elapsed Time: 0.054 seconds (Warm-up)
-#> Chain 4:                0.037 seconds (Sampling)
-#> Chain 4:                0.091 seconds (Total)
+#> Chain 4:  Elapsed Time: 0.051 seconds (Warm-up)
+#> Chain 4:                0.035 seconds (Sampling)
+#> Chain 4:                0.086 seconds (Total)
 #> Chain 4:
 ```
 
@@ -823,7 +823,7 @@ extract_mu_tau(fit)
 ``` r
 
 sessionInfo()
-#> R version 4.6.0 (2026-04-24)
+#> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
 #> Running under: Ubuntu 24.04.4 LTS
 #> 
@@ -847,29 +847,29 @@ sessionInfo()
 #>  [1] lubridate_1.9.5      forcats_1.0.1        stringr_1.6.0       
 #>  [4] dplyr_1.2.1          purrr_1.2.2          readr_2.2.0         
 #>  [7] tidyr_1.3.2          tibble_3.3.1         ggplot2_4.0.3       
-#> [10] tidyverse_2.0.0      posterior_1.7.0      distributional_0.7.1
-#> [13] shrinkr_0.4.4       
+#> [10] tidyverse_2.0.0      posterior_1.7.0      distributional_0.8.1
+#> [13] shrinkr_0.4.5       
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] gtable_0.3.6          tensorA_0.36.2.1      xfun_0.58            
+#>  [1] gtable_0.3.6          tensorA_0.36.2.1      xfun_0.59            
 #>  [4] bslib_0.11.0          QuickJSR_1.10.0       htmlwidgets_1.6.4    
 #>  [7] inline_0.3.21         tzdb_0.5.0            vctrs_0.7.3          
-#> [10] tools_4.6.0           generics_0.1.4        stats4_4.6.0         
-#> [13] parallel_4.6.0        pkgconfig_2.0.3       checkmate_2.3.4      
+#> [10] tools_4.6.1           generics_0.1.4        stats4_4.6.1         
+#> [13] parallel_4.6.1        pkgconfig_2.0.3       checkmate_2.3.4      
 #> [16] RColorBrewer_1.1-3    S7_0.2.2              desc_1.4.3           
-#> [19] RcppParallel_5.1.11-2 lifecycle_1.0.5       compiler_4.6.0       
+#> [19] RcppParallel_5.1.11-2 lifecycle_1.0.5       compiler_4.6.1       
 #> [22] farver_2.1.2          textshaping_1.0.5     codetools_0.2-20     
 #> [25] htmltools_0.5.9       sass_0.4.10           yaml_2.3.12          
 #> [28] pillar_1.11.1         pkgdown_2.2.0         jquerylib_0.1.4      
 #> [31] cachem_1.1.0          StanHeaders_2.32.10   abind_1.4-8          
 #> [34] mclust_6.1.2          rstan_2.32.7          tidyselect_1.2.1     
 #> [37] digest_0.6.39         stringi_1.8.7         labeling_0.4.3       
-#> [40] fastmap_1.2.0         grid_4.6.0            cli_3.6.6            
-#> [43] magrittr_2.0.5        patchwork_1.3.2       loo_2.9.0            
-#> [46] utf8_1.2.6            pkgbuild_1.4.8        withr_3.0.2          
+#> [40] fastmap_1.2.0         grid_4.6.1            cli_3.6.6            
+#> [43] magrittr_2.0.5        patchwork_1.3.2       loo_2.10.0           
+#> [46] utf8_1.2.6            pkgbuild_1.4.8        withr_3.0.3          
 #> [49] scales_1.4.0          backports_1.5.1       timechange_0.4.0     
 #> [52] rmarkdown_2.31        matrixStats_1.5.0     otel_0.2.0           
-#> [55] gridExtra_2.3         ragg_1.5.2            hms_1.1.4            
+#> [55] gridExtra_2.3.1       ragg_1.5.2            hms_1.1.4            
 #> [58] evaluate_1.0.5        knitr_1.51            rstantools_2.6.0     
 #> [61] rlang_1.2.0           Rcpp_1.1.1-1.1        glue_1.8.1           
 #> [64] jsonlite_2.0.0        R6_2.6.1              systemfonts_1.3.2    

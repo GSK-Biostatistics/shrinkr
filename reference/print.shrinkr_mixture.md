@@ -33,19 +33,28 @@ summaries
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+set.seed(1)
 samples <- list(
-  matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-  matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-  matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+  group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+  group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 )
-
-mix <- fit_mixture(samples, K_max = 5)
-
-# Print summary
+mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 print(mix)
-
-# Or just type the object name
-mix
-} # }
+#> ── Gaussian Mixture Model Fit ──────────────────────────────────────────────────
+#> 
+#> Components: 1
+#> Variables: 2 (group1, group2)
+#> Samples: 100
+#> 
+#> Model: XII
+#> BIC: -272.46
+#> 
+#> 
+#> ── Component weights 
+#> k = 1: 1
+#> 
+#> ────────────────────────────────────────────────────────────────────────────────
+#> ℹ Use `plot()` to visualize marginal fits
+#> ℹ Use `as.data.frame()` for component specifications
+#> ℹ Use `summary()` for detailed statistics
 ```

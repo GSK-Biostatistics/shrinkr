@@ -61,24 +61,20 @@ prior predictive samples
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-library(distributional)
-
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 1), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 )
-
-prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 500)
-
-# Convert to data frame
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 df <- as.data.frame(prior_pred)
 head(df)
-
-# Use with dplyr
-library(dplyr)
-df %>%
-  group_by(group) %>%
-  summarise(mean_theta = mean(theta), sd_theta = sd(theta))
-} # }
+#> # A tibble: 6 × 5
+#>   .draw group  theta    mu   tau
+#>   <int> <chr>  <dbl> <dbl> <dbl>
+#> 1     1 group1 2.91   2.05 0.762
+#> 2     1 group2 0.302  2.05 0.762
+#> 3     1 group3 2.61   2.05 0.762
+#> 4     2 group1 7.11   8.44 1.01 
+#> 5     2 group2 9.37   8.44 1.01 
+#> 6     2 group3 8.85   8.44 1.01 
 ```

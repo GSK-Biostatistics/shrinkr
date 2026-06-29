@@ -50,26 +50,17 @@ quick overview
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-library(distributional)
-
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 1), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 )
-
-prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 1000)
-
-# Get detailed summary
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 summ <- summary(prior_pred)
-
-# View hyperparameter summaries
-summ$hyperparameters
-
-# View theta summaries
 summ$theta
-
-# Custom quantiles
-summary(prior_pred, probs = c(0.05, 0.25, 0.5, 0.75, 0.95))
-} # }
+#> # A tibble: 3 × 6
+#>   group     mean    sd  q2.5   q50.0 q97.5
+#>   <chr>    <dbl> <dbl> <dbl>   <dbl> <dbl>
+#> 1 group1 -0.209   5.57 -10.7 -0.341  10.8 
+#> 2 group2 -0.0604  5.64 -10.9  0.190  10.0 
+#> 3 group3 -0.0191  5.70 -10.7 -0.0812  9.51
 ```

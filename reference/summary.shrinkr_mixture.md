@@ -48,22 +48,16 @@ A list with class "summary.shrinkr_mixture" containing:
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+set.seed(1)
 samples <- list(
-  matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-  matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-  matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+  group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+  group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 )
-
-mix <- fit_mixture(samples, K_max = 5)
-
-# Get detailed summary
+mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 summ <- summary(mix)
-
-# View component summaries
 summ$components
-
-# View variable-wise summaries
-summ$by_variable
-} # }
+#> # A tibble: 1 × 2
+#>   component weight
+#>       <int>  <dbl>
+#> 1         1      1
 ```

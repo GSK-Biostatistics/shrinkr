@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">shrinkr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,6 +41,24 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.5" id="shrinkr-045">shrinkr 0.4.5<a class="anchor" aria-label="anchor" href="#shrinkr-045"></a></h2>
+<div class="section level3">
+<h3 id="documentation-0-4-5">Documentation<a class="anchor" aria-label="anchor" href="#documentation-0-4-5"></a></h3>
+<ul><li>
+<p><strong>Improved CRAN compatibility.</strong> Updated package metadata and documentation following CRAN review comments, including expanding Markov chain Monte Carlo</p>
+<ol start="2000" style="list-style-type: upper-roman"><li>on first use in the <code>DESCRIPTION</code> file.</li>
+</ol></li>
+<li><p><strong>Modernized examples.</strong> Reworked documentation examples so lightweight examples are executable and self-contained. Replaced unnecessary <code>\dontrun{}</code> blocks with executable examples or <code>\donttest{}</code> where appropriate.</p></li>
+<li><p><strong>Protected computationally intensive examples.</strong> Kept examples that require fitting Bayesian hierarchical models with Stan inside <code>\dontrun{}</code> because they are not suitable for routine CRAN example checks.</p></li>
+<li><p><strong>Improved method documentation examples.</strong> Added small example objects for selected <code>shrinkr_fit</code> and mixture-method documentation so examples no longer depend on objects created in other help pages.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="vignettes-0-4-5">Vignettes<a class="anchor" aria-label="anchor" href="#vignettes-0-4-5"></a></h3>
+<ul><li>
+<strong>Restored graphical parameters.</strong> Updated the <code>federated_learning</code> vignette to save and restore graphical settings after calls to <code><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par()</a></code>, avoiding persistent changes to the user’s plotting environment.</li>
+</ul><hr></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.4" id="shrinkr-044">shrinkr 0.4.4<a class="anchor" aria-label="anchor" href="#shrinkr-044"></a></h2>
 <div class="section level3">
 <h3 id="new-features-0-4-4">New Features<a class="anchor" aria-label="anchor" href="#new-features-0-4-4"></a></h3>
@@ -57,11 +75,18 @@
 <h2 class="pkg-version" data-toc-text="0.4.3" id="shrinkr-043">shrinkr 0.4.3<a class="anchor" aria-label="anchor" href="#shrinkr-043"></a></h2>
 <div class="section level3">
 <h3 id="bug-fixes-0-4-3">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-4-3"></a></h3>
-<ul><li><p><strong>Fixed inverse-gamma prior translation in <code>R/utils.R</code>.</strong> The branch handling <code>dist_inverse_gamma</code> priors on <code>tau</code> was reading from <code>params$shape</code> and <code>params$scale</code>, but <code><a href="https://pkg.mitchelloharawild.com/distributional/reference/parameters.html" class="external-link">distributional::parameters()</a></code> returns those fields as <code>s</code> and <code>r</code>. The check <code>!is.null(params$shape) &amp;&amp; !is.null(params$scale)</code> was always FALSE, so the branch silently failed and downstream code relied on a format-string regex fallback to rescue the parsing. End-to-end posteriors were correct (the fallback happened to parse <code><a href="https://rdrr.io/r/base/format.html" class="external-link">format()</a></code> output identically to what the explicit branch should have produced), but the code path was fragile. The branch now reads <code>params$s</code> / <code>params$r</code> from <code>parameters(tau_raw)</code> (the unwrapped distribution, not the possibly-truncated wrapper) and dispatches correctly without needing the fallback.</p></li>
-<li><p><strong>Fixed uniform prior translation in <code>R/utils.R</code>.</strong> The <code>dist_uniform</code> branch was reading from <code>tau_raw$min</code> and <code>tau_raw$max</code>, but distributional stores the bounds as <code>l</code> and <code>u</code>. Same pattern as the IG bug: branch silently failed, format-string fallback rescued it. The branch now reads <code>tau_raw$l</code> / <code>tau_raw$u</code> and dispatches correctly. ## Internal Changes</p></li>
-<li><p><strong>Removed unused <code>stan_code()</code> generic and methods</strong> from <code>R/prior_system.R</code>. The generic and its 9 distributional-family methods were vestiges of an earlier, abandoned design where Stan code was assembled at runtime from prior strings. shrinkr’s actual workflow handles all prior dispatch internally inside the precompiled Stan model (<code>inst/stan/stage2_shrinkage.stan</code>) via integer prior codes and parameter arrays. The dead code path was never reached at runtime; removing it drops ~120 lines of source, 9 <code>S3method</code> entries from <code>NAMESPACE</code>, and 10 <code>.Rd</code> files from <code>man/</code>. <code><a href="../reference/prior_mixture.html">prior_mixture()</a></code> and <code><a href="../reference/prior_spike_slab.html">prior_spike_slab()</a></code> remain unchanged.</p></li>
-<li><p><strong>Removed the format-string regex fallback in <code>R/utils.R</code>.</strong> Roughly 85 lines across the <code>mu</code> and <code>tau</code> translation paths used <code>format(prior)</code> string parsing as a last-resort dispatch when the explicit class-based branches missed. With the inverse-gamma fix above, every supported prior now dispatches via class-based checks, making the fallback redundant. Removing it leaves a cleaner, more transparent failure mode: an unsupported prior raises a clear error rather than silently passing through a regex parser. —</p></li>
+<ul><li>
+<strong>Fixed inverse-gamma prior translation in <code>R/utils.R</code>.</strong> The branch handling <code>dist_inverse_gamma</code> priors on <code>tau</code> was reading from <code>params$shape</code> and <code>params$scale</code>, but <code><a href="https://pkg.mitchelloharawild.com/distributional/reference/parameters.html" class="external-link">distributional::parameters()</a></code> returns those fields as <code>s</code> and <code>r</code>. The check <code>!is.null(params$shape) &amp;&amp; !is.null(params$scale)</code> was always FALSE, so the branch silently failed and downstream code relied on a format-string regex fallback to rescue the parsing. End-to-end posteriors were correct (the fallback happened to parse <code><a href="https://rdrr.io/r/base/format.html" class="external-link">format()</a></code> output identically to what the explicit branch should have produced), but the code path was fragile. The branch now reads <code>params$s</code> / <code>params$r</code> from <code>parameters(tau_raw)</code> (the unwrapped distribution, not the possibly-truncated wrapper) and dispatches correctly without needing the fallback.</li>
+<li>
+<strong>Fixed uniform prior translation in <code>R/utils.R</code>.</strong> The <code>dist_uniform</code> branch was reading from <code>tau_raw$min</code> and <code>tau_raw$max</code>, but distributional stores the bounds as <code>l</code> and <code>u</code>. Same pattern as the IG bug: branch silently failed, format-string fallback rescued it. The branch now reads <code>tau_raw$l</code> / <code>tau_raw$u</code> and dispatches correctly.</li>
 </ul></div>
+<div class="section level3">
+<h3 id="internal-changes-0-4-3">Internal Changes<a class="anchor" aria-label="anchor" href="#internal-changes-0-4-3"></a></h3>
+<ul><li>
+<strong>Removed unused <code>stan_code()</code> generic and methods</strong> from <code>R/prior_system.R</code>. The generic and its 9 distributional-family methods were vestiges of an earlier, abandoned design where Stan code was assembled at runtime from prior strings. shrinkr’s actual workflow handles all prior dispatch internally inside the precompiled Stan model (<code>inst/stan/stage2_shrinkage.stan</code>) via integer prior codes and parameter arrays. The dead code path was never reached at runtime; removing it drops ~120 lines of source, 9 <code>S3method</code> entries from <code>NAMESPACE</code>, and 10 <code>.Rd</code> files from <code>man/</code>. <code><a href="../reference/prior_mixture.html">prior_mixture()</a></code> and <code><a href="../reference/prior_spike_slab.html">prior_spike_slab()</a></code> remain unchanged.</li>
+<li>
+<strong>Removed the format-string regex fallback in <code>R/utils.R</code>.</strong> Roughly 85 lines across the <code>mu</code> and <code>tau</code> translation paths used <code>format(prior)</code> string parsing as a last-resort dispatch when the explicit class-based branches missed. With the inverse-gamma fix above, every supported prior now dispatches via class-based checks, making the fallback redundant. Removing it leaves a cleaner, more transparent failure mode: an unsupported prior raises a clear error rather than silently passing through a regex parser.</li>
+</ul><hr></div>
 </div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.2" id="shrinkr-042">shrinkr 0.4.2<a class="anchor" aria-label="anchor" href="#shrinkr-042"></a></h2>
@@ -293,7 +318,7 @@
 </ul></div>
 <div class="section level3">
 <h3 id="technical-details-0-3-0">Technical Details<a class="anchor" aria-label="anchor" href="#technical-details-0-3-0"></a></h3>
-<ul><li>Built on <strong>rstan</strong> for MCMC sampling</li>
+<ul><li>Built on <strong>rstan</strong> for Markov chain Monte Carlo (MCMC) sampling</li>
 <li>Uses <strong>mclust</strong> for mixture model fitting</li>
 <li>Integrates with <strong>posterior</strong> and <strong>distributional</strong> packages</li>
 <li>Supports centered and non-centered parameterizations</li>

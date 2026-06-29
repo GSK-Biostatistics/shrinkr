@@ -88,23 +88,54 @@ contrasts
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-fit <- shrink(mixture = mix, hierarchical_priors = priors)
-
-# Basic summary
-theta_summary <- summarise_theta(fit)
-print(theta_summary)
-
-# Custom quantiles
-theta_summary <- summarise_theta(fit, probs = c(0.05, 0.5, 0.95))
-
-# With custom group names
-theta_summary <- summarise_theta(
-  fit, 
-  group_names = c("Control", "Treatment A", "Treatment B")
+set.seed(1)
+draws <- data.frame(
+  mu = rnorm(20, 0.2, 0.05),
+  tau = abs(rnorm(20, 0.3, 0.03)),
+  `theta[1]` = rnorm(20, 0.0, 0.1),
+  `theta[2]` = rnorm(20, 0.3, 0.1),
+  `theta[3]` = rnorm(20, 0.5, 0.1),
+  check.names = FALSE
 )
-
-# Custom measures
-theta_summary <- summarise_theta(fit, measures = c("mean", "median", "mad"))
-} # }
+draws$tau_squared <- draws$tau^2
+fit <- list(
+  fit = posterior::as_draws_df(draws),
+  data = list(
+    G = 3, K = 1, centered = FALSE,
+    vars = c("group1", "group2", "group3"),
+    quantiles = data.frame(
+      q2.5 = c(-0.20, 0.10, 0.30),
+      q50 = c(0.00, 0.30, 0.50),
+      q97.5 = c(0.20, 0.50, 0.70)
+    )
+  ),
+  summary = posterior::summarise_draws(
+    posterior::as_draws_df(draws),
+    "mean", "sd",
+    ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+  ),
+  diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+)
+class(fit) <- "shrinkr_fit"
+summarise_theta(fit)
+#> # A tibble: 3 × 6
+#>   group    mean     sd   q2.5    q50 q97.5
+#>   <chr>   <dbl>  <dbl>  <dbl>  <dbl> <dbl>
+#> 1 group1 0.0139 0.0810 -0.109 0.0114 0.172
+#> 2 group2 0.310  0.105   0.146 0.305  0.529
+#> 3 group3 0.512  0.0911  0.359 0.530  0.641
+summarise_theta(fit, probs = c(0.05, 0.5, 0.95))
+#> # A tibble: 3 × 6
+#>   group    mean     sd     q5    q50   q95
+#>   <chr>   <dbl>  <dbl>  <dbl>  <dbl> <dbl>
+#> 1 group1 0.0139 0.0810 -0.105 0.0114 0.146
+#> 2 group2 0.310  0.105   0.172 0.305  0.518
+#> 3 group3 0.512  0.0911  0.371 0.530  0.623
+summarise_theta(fit, group_names = c("Control", "A", "B"))
+#> # A tibble: 3 × 6
+#>   group     mean     sd   q2.5    q50 q97.5
+#>   <chr>    <dbl>  <dbl>  <dbl>  <dbl> <dbl>
+#> 1 Control 0.0139 0.0810 -0.109 0.0114 0.172
+#> 2 A       0.310  0.105   0.146 0.305  0.529
+#> 3 B       0.512  0.0911  0.359 0.530  0.641
 ```

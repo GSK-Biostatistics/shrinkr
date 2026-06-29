@@ -28,12 +28,9 @@ A `distributional` mixture distribution object
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# Custom mixture
 mix <- prior_mixture(
   distributional::dist_normal(0, 0.1),
   distributional::dist_normal(0, 1),
   weights = c(0.7, 0.3)
 )
-} # }
 ```

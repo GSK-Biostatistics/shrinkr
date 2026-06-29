@@ -91,36 +91,21 @@ prior predictive samples
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-library(distributional)
-
-# Specify priors
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 2.5), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 )
-
-# Sample from prior predictive
-prior_pred <- sample_prior_predictive(
-  hierarchical_priors = priors,
-  n_groups = 4,
-  n_draws = 1000
-)
-
-# Visualize
-plot(prior_pred)
-
-# Check implied spread of effects
-cat("Median implied range:", median(prior_pred$implied_range), "\n")
-cat("Median implied SD:", median(prior_pred$implied_sd), "\n")
-
-# Extract as tidy data frame
-prior_df <- as.data.frame(prior_pred)
-
-# Check prior implied theta distribution
-library(ggplot2)
-ggplot(prior_df, aes(x = theta, y = group)) +
-  geom_violin() +
-  labs(title = "Prior predictive distribution for theta")
-} # }
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
+median(prior_pred$implied_range)
+#> [1] 0.9419793
+head(as.data.frame(prior_pred))
+#> # A tibble: 6 × 5
+#>   .draw group   theta     mu   tau
+#>   <int> <chr>   <dbl>  <dbl> <dbl>
+#> 1     1 group1  0.326  0.305 0.305
+#> 2     1 group2 -0.159  0.305 0.305
+#> 3     1 group3  0.568  0.305 0.305
+#> 4     2 group1 -3.65  -4.12  0.930
+#> 5     2 group2 -4.45  -4.12  0.930
+#> 6     2 group3 -4.57  -4.12  0.930
 ```

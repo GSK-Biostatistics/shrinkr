@@ -1,5 +1,38 @@
 # Changelog
 
+## shrinkr 0.4.5
+
+### Documentation
+
+- **Improved CRAN compatibility.** Updated package metadata and
+  documentation following CRAN review comments, including expanding
+  Markov chain Monte Carlo
+
+  2000. on first use in the `DESCRIPTION` file.
+
+- **Modernized examples.** Reworked documentation examples so
+  lightweight examples are executable and self-contained. Replaced
+  unnecessary `\dontrun{}` blocks with executable examples or
+  `\donttest{}` where appropriate.
+
+- **Protected computationally intensive examples.** Kept examples that
+  require fitting Bayesian hierarchical models with Stan inside
+  `\dontrun{}` because they are not suitable for routine CRAN example
+  checks.
+
+- **Improved method documentation examples.** Added small example
+  objects for selected `shrinkr_fit` and mixture-method documentation so
+  examples no longer depend on objects created in other help pages.
+
+### Vignettes
+
+- **Restored graphical parameters.** Updated the `federated_learning`
+  vignette to save and restore graphical settings after calls to
+  [`par()`](https://rdrr.io/r/graphics/par.html), avoiding persistent
+  changes to the user’s plotting environment.
+
+------------------------------------------------------------------------
+
 ## shrinkr 0.4.4
 
 ### New Features
@@ -49,13 +82,13 @@
   `parameters(tau_raw)` (the unwrapped distribution, not the
   possibly-truncated wrapper) and dispatches correctly without needing
   the fallback.
-
 - **Fixed uniform prior translation in `R/utils.R`.** The `dist_uniform`
   branch was reading from `tau_raw$min` and `tau_raw$max`, but
   distributional stores the bounds as `l` and `u`. Same pattern as the
   IG bug: branch silently failed, format-string fallback rescued it. The
   branch now reads `tau_raw$l` / `tau_raw$u` and dispatches correctly.
-  \## Internal Changes
+
+### Internal Changes
 
 - **Removed unused `stan_code()` generic and methods** from
   `R/prior_system.R`. The generic and its 9 distributional-family
@@ -69,7 +102,6 @@
   [`prior_mixture()`](../reference/prior_mixture.md) and
   [`prior_spike_slab()`](../reference/prior_spike_slab.md) remain
   unchanged.
-
 - **Removed the format-string regex fallback in `R/utils.R`.** Roughly
   85 lines across the `mu` and `tau` translation paths used
   `format(prior)` string parsing as a last-resort dispatch when the
@@ -77,7 +109,9 @@
   above, every supported prior now dispatches via class-based checks,
   making the fallback redundant. Removing it leaves a cleaner, more
   transparent failure mode: an unsupported prior raises a clear error
-  rather than silently passing through a regex parser. —
+  rather than silently passing through a regex parser.
+
+------------------------------------------------------------------------
 
 ## shrinkr 0.4.2
 
@@ -421,7 +455,7 @@ internal use at GSK.
 
 ### Technical Details
 
-- Built on **rstan** for MCMC sampling
+- Built on **rstan** for Markov chain Monte Carlo (MCMC) sampling
 - Uses **mclust** for mixture model fitting
 - Integrates with **posterior** and **distributional** packages
 - Supports centered and non-centered parameterizations

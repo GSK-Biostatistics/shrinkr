@@ -58,25 +58,38 @@ with columns for chain, iteration, draw, and requested parameters.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-fit <- shrink(mixture = mix, hierarchical_priors = priors)
-
-# User-facing parameters only (default)
-all_draws <- as_draws_df(fit)
-variables(all_draws)  # mu, tau, theta[1], ..., tau_squared
-
-# Include internal parameters for diagnostics
-all_draws_internal <- as_draws_df(fit, include_internals = TRUE)
-variables(all_draws_internal)  # includes theta_c, z
-
-# Just theta parameters
-theta_draws <- as_draws_df(fit, variables = "theta")
-
-# Specific thetas
-theta12_draws <- as_draws_df(fit, variables = c("theta[1]", "theta[2]"))
-
-# Work with draws
-library(posterior)
-summarise_draws(all_draws)
-} # }
+set.seed(1)
+draws <- data.frame(
+  mu = rnorm(20, 0.2, 0.05),
+  tau = abs(rnorm(20, 0.3, 0.03)),
+  `theta[1]` = rnorm(20, 0.0, 0.1),
+  `theta[2]` = rnorm(20, 0.3, 0.1),
+  `theta[3]` = rnorm(20, 0.5, 0.1),
+  check.names = FALSE
+)
+draws$tau_squared <- draws$tau^2
+fit <- list(
+  fit = posterior::as_draws_df(draws),
+  data = list(
+    G = 3, K = 1, centered = FALSE,
+    vars = c("group1", "group2", "group3"),
+    quantiles = data.frame(
+      q2.5 = c(-0.20, 0.10, 0.30),
+      q50 = c(0.00, 0.30, 0.50),
+      q97.5 = c(0.20, 0.50, 0.70)
+    )
+  ),
+  summary = posterior::summarise_draws(
+    posterior::as_draws_df(draws),
+    "mean", "sd",
+    ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+  ),
+  diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+)
+class(fit) <- "shrinkr_fit"
+all_draws <- posterior::as_draws_df(fit)
+posterior::variables(all_draws)
+#> [1] "mu"          "tau"         "theta[1]"    "theta[2]"    "theta[3]"   
+#> [6] "tau_squared"
+theta_draws <- posterior::as_draws_df(fit, variables = c("theta[1]", "theta[2]"))
 ```

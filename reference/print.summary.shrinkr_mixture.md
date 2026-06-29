@@ -36,20 +36,34 @@ summaries
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+set.seed(1)
 samples <- list(
-  matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-  matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-  matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+  group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+  group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 )
-
-mix <- fit_mixture(samples, K_max = 5)
+mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 summ <- summary(mix)
-
-# Print summary
 print(summ)
-
-# With more decimal places
-print(summ, digits = 4)
-} # }
+#> == Mixture Model Summary ============================
+#> 
+#> Model: XII 
+#> Components: 1 
+#> Log-likelihood: -129.32 
+#> BIC: -272.456 
+#> Parameters: 3 
+#> 
+#> Component weights:
+#> # A tibble: 1 × 2
+#>   component weight
+#>       <int>  <dbl>
+#> 1         1      1
+#> 
+#> Variable-wise summaries (weighted across components):
+#> # A tibble: 2 × 5
+#>   variable weighted_mean weighted_sd range_mean range_sd
+#>   <chr>            <dbl>       <dbl>      <dbl>    <dbl>
+#> 1 group1          0.0544       0.462          0        0
+#> 2 group2          0.481        0.462          0        0
+#> 
+#> -----------------------------------------------------
 ```

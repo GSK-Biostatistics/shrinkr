@@ -9,7 +9,7 @@ wrapper around as_draws_df() that returns a plain data.frame."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">shrinkr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -105,16 +105,52 @@ requested parameters.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="shrink.html">shrink</a></span><span class="op">(</span>mixture <span class="op">=</span> <span class="va">mix</span>, hierarchical_priors <span class="op">=</span> <span class="va">priors</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Extract as data frame</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">draws</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  mu <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">0.2</span>, <span class="fl">0.05</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  tau <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">0.3</span>, <span class="fl">0.03</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  `theta[1]` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">0.0</span>, <span class="fl">0.1</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  `theta[2]` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">0.3</span>, <span class="fl">0.1</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  `theta[3]` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">0.5</span>, <span class="fl">0.1</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  check.names <span class="op">=</span> <span class="cn">FALSE</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">draws</span><span class="op">$</span><span class="va">tau_squared</span> <span class="op">&lt;-</span> <span class="va">draws</span><span class="op">$</span><span class="va">tau</span><span class="op">^</span><span class="fl">2</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  fit <span class="op">=</span> <span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws_df.html" class="external-link">as_draws_df</a></span><span class="op">(</span><span class="va">draws</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    G <span class="op">=</span> <span class="fl">3</span>, K <span class="op">=</span> <span class="fl">1</span>, centered <span class="op">=</span> <span class="cn">FALSE</span>,</span></span>
+<span class="r-in"><span>    vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"group1"</span>, <span class="st">"group2"</span>, <span class="st">"group3"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    quantiles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>      q2.5 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.20</span>, <span class="fl">0.10</span>, <span class="fl">0.30</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>      q50 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.00</span>, <span class="fl">0.30</span>, <span class="fl">0.50</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>      q97.5 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.20</span>, <span class="fl">0.50</span>, <span class="fl">0.70</span><span class="op">)</span></span></span>
+<span class="r-in"><span>    <span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span>,</span></span>
+<span class="r-in"><span>  summary <span class="op">=</span> <span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws_df.html" class="external-link">as_draws_df</a></span><span class="op">(</span><span class="va">draws</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    <span class="st">"mean"</span>, <span class="st">"sd"</span>,</span></span>
+<span class="r-in"><span>    <span class="op">~</span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/quantile2.html" class="external-link">quantile2</a></span><span class="op">(</span><span class="va">.</span>, probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.5</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span>,</span></span>
+<span class="r-in"><span>  diagnostics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>n_divergent <span class="op">=</span> <span class="fl">0</span>, max_treedepth <span class="op">=</span> <span class="fl">0</span>, n_leapfrog <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="st">"shrinkr_fit"</span></span></span>
 <span class="r-in"><span><span class="va">draws_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">draws_df</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Just mu and tau</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          mu       tau    theta[1]  theta[2]  theta[3] tau_squared .chain</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 0.1686773 0.3275693 -0.01645236 0.5401618 0.4431331  0.10730166      1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 0.2091822 0.3234641 -0.02533617 0.2960760 0.4864821  0.10462902      1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3 0.1582186 0.3022369  0.06969634 0.3689739 0.6178087  0.09134717      1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4 0.2797640 0.2403194  0.05566632 0.3028002 0.3476433  0.05775344      1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5 0.2164754 0.3185948 -0.06887557 0.2256727 0.5593946  0.10150263      1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6 0.1589766 0.2983161 -0.07074952 0.3188792 0.5332950  0.08899252      1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   .iteration .draw</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1          1     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2          2     2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3          3     3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4          4     4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5          5     5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6          6     6</span>
 <span class="r-in"><span><span class="va">mu_tau_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mu"</span>, <span class="st">"tau"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

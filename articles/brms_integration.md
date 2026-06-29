@@ -866,7 +866,7 @@ ggplot(theta_sensitivity, aes(x = prior_scale, y = hr_mean, color = approach)) +
 ``` r
 
 sessionInfo()
-#> R version 4.6.0 (2026-04-24)
+#> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
 #> Running under: Ubuntu 24.04.4 LTS
 #> 
@@ -891,25 +891,25 @@ sessionInfo()
 #>  [4] lubridate_1.9.5      forcats_1.0.1        stringr_1.6.0       
 #>  [7] dplyr_1.2.1          purrr_1.2.2          readr_2.2.0         
 #> [10] tidyr_1.3.2          tibble_3.3.1         ggplot2_4.0.3       
-#> [13] tidyverse_2.0.0      distributional_0.7.1 tidybayes_3.0.7     
-#> [16] brms_2.23.0          Rcpp_1.1.1-1.1       shrinkr_0.4.4       
+#> [13] tidyverse_2.0.0      distributional_0.8.1 tidybayes_3.0.7     
+#> [16] brms_2.23.0          Rcpp_1.1.1-1.1       shrinkr_0.4.5       
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] tidyselect_1.2.1      svUnit_1.0.8          farver_2.1.2         
-#>  [4] loo_2.9.0             S7_0.2.2              fastmap_1.2.0        
+#>  [4] loo_2.10.0            S7_0.2.2              fastmap_1.2.0        
 #>  [7] tensorA_0.36.2.1      digest_0.6.39         timechange_0.4.0     
 #> [10] lifecycle_1.0.5       StanHeaders_2.32.10   magrittr_2.0.5       
-#> [13] compiler_4.6.0        rlang_1.2.0           sass_0.4.10          
-#> [16] tools_4.6.0           utf8_1.2.6            yaml_2.3.12          
+#> [13] compiler_4.6.1        rlang_1.2.0           sass_0.4.10          
+#> [16] tools_4.6.1           utf8_1.2.6            yaml_2.3.12          
 #> [19] knitr_1.51            labeling_0.4.3        bridgesampling_1.2-1 
 #> [22] htmlwidgets_1.6.4     pkgbuild_1.4.8        mclust_6.1.2         
-#> [25] RColorBrewer_1.1-3    abind_1.4-8           withr_3.0.2          
-#> [28] desc_1.4.3            grid_4.6.0            stats4_4.6.0         
+#> [25] RColorBrewer_1.1-3    abind_1.4-8           withr_3.0.3          
+#> [28] desc_1.4.3            grid_4.6.1            stats4_4.6.1         
 #> [31] inline_0.3.21         scales_1.4.0          cli_3.6.6            
 #> [34] mvtnorm_1.4-1         rmarkdown_2.31        ragg_1.5.2           
 #> [37] generics_0.1.4        otel_0.2.0            RcppParallel_5.1.11-2
 #> [40] tzdb_0.5.0            cachem_1.1.0          rstan_2.32.7         
-#> [43] splines_4.6.0         bayesplot_1.15.0      parallel_4.6.0       
+#> [43] splines_4.6.1         bayesplot_1.15.0      parallel_4.6.1       
 #> [46] matrixStats_1.5.0     vctrs_0.7.3           Matrix_1.7-5         
 #> [49] jsonlite_2.0.0        hms_1.1.4             arrayhelpers_1.1-0   
 #> [52] systemfonts_1.3.2     ggdist_3.3.3          jquerylib_0.1.4      
@@ -918,7 +918,7 @@ sessionInfo()
 #> [61] pillar_1.11.1         htmltools_0.5.9       Brobdingnag_1.2-9    
 #> [64] R6_2.6.1              textshaping_1.0.5     evaluate_1.0.5       
 #> [67] lattice_0.22-9        backports_1.5.1       bslib_0.11.0         
-#> [70] rstantools_2.6.0      coda_0.19-4.1         gridExtra_2.3        
-#> [73] nlme_3.1-169          checkmate_2.3.4       xfun_0.58            
+#> [70] rstantools_2.6.0      coda_0.19-4.1         gridExtra_2.3.1      
+#> [73] nlme_3.1-169          checkmate_2.3.4       xfun_0.59            
 #> [76] fs_2.1.0              pkgconfig_2.0.3
 ```

@@ -60,22 +60,33 @@ visualizing the result
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-library(distributional)
-
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 1), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 )
-
-prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 2000)
-
-# Compute pairwise differences
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 pw <- prior_pairwise_differences(prior_pred)
 print(pw)
-plot(pw)
-
-# What range of pairwise differences does this prior imply?
+#> == Prior Predictive: Pairwise |theta_i - theta_j| ==
+#> 
+#> Groups:  3 
+#> Pairs:   3 
+#> Draws:   50 
+#> 
+#> Overall quantiles of |theta_i - theta_j|:
+#>    q2.5 = 0.007, q25 = 0.159, q50 = 0.448, q75 = 1.22, q97.5 = 5.372 
+#> 
+#> Per-pair summary:
+#> # A tibble: 3 × 6
+#>   pair             median    q2.5 q97.5 prob_gt_0.5 prob_gt_1
+#>   <chr>             <dbl>   <dbl> <dbl>       <dbl>     <dbl>
+#> 1 group1 vs group2  0.391 0.00796  5.51        0.48      0.36
+#> 2 group1 vs group3  0.474 0.0139   8.97        0.48      0.32
+#> 3 group2 vs group3  0.463 0.00648  3.77        0.46      0.3 
+#> 
+#> -----------------------------------------------------
+#> Use plot() to visualize
 pw$overall_summary
-} # }
+#>        q2.5         q25         q50         q75       q97.5 
+#> 0.006571204 0.158913097 0.447961911 1.220236994 5.372119638 
 ```
