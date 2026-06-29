@@ -28,14 +28,11 @@ NULL
 #' @return A `distributional` mixture distribution object
 #' @export
 #' @examples
-#' \dontrun{
-#' # Custom mixture
 #' mix <- prior_mixture(
 #'   distributional::dist_normal(0, 0.1),
 #'   distributional::dist_normal(0, 1),
 #'   weights = c(0.7, 0.3)
 #' )
-#' }
 prior_mixture <- function(..., weights = NULL) {
   components <- list(...)
   n_comp <- length(components)
@@ -68,14 +65,10 @@ prior_mixture <- function(..., weights = NULL) {
 #' @return A spike-and-slab mixture distribution
 #' @export
 #' @examples
-#' \dontrun{
-#' library(distributional)
-#' # Spike-and-slab for tau — must truncate for scale parameter
-#' tau_prior <- dist_truncated(
+#' tau_prior <- distributional::dist_truncated(
 #'   prior_spike_slab(spike_prob = 0.5, spike_scale = 0.01, slab_scale = 1),
 #'   lower = 0
 #' )
-#' }
 prior_spike_slab <- function(spike_location = 0, spike_scale = 0.01,
                              slab_scale = 1, spike_prob = 0.5) {
   prior_mixture(

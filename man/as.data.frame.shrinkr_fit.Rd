@@ -38,16 +38,38 @@ Extracts posterior draws as a regular data frame. This is a convenience
 wrapper around \code{as_draws_df()} that returns a plain data.frame.
 }
 \examples{
-\dontrun{
-fit <- shrink(mixture = mix, hierarchical_priors = priors)
-
-# Extract as data frame
+set.seed(1)
+draws <- data.frame(
+  mu = rnorm(20, 0.2, 0.05),
+  tau = abs(rnorm(20, 0.3, 0.03)),
+  `theta[1]` = rnorm(20, 0.0, 0.1),
+  `theta[2]` = rnorm(20, 0.3, 0.1),
+  `theta[3]` = rnorm(20, 0.5, 0.1),
+  check.names = FALSE
+)
+draws$tau_squared <- draws$tau^2
+fit <- list(
+  fit = posterior::as_draws_df(draws),
+  data = list(
+    G = 3, K = 1, centered = FALSE,
+    vars = c("group1", "group2", "group3"),
+    quantiles = data.frame(
+      q2.5 = c(-0.20, 0.10, 0.30),
+      q50 = c(0.00, 0.30, 0.50),
+      q97.5 = c(0.20, 0.50, 0.70)
+    )
+  ),
+  summary = posterior::summarise_draws(
+    posterior::as_draws_df(draws),
+    "mean", "sd",
+    ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+  ),
+  diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+)
+class(fit) <- "shrinkr_fit"
 draws_df <- as.data.frame(fit)
 head(draws_df)
-
-# Just mu and tau
 mu_tau_df <- as.data.frame(fit, variables = c("mu", "tau"))
-}
 }
 \seealso{
 \code{\link[=as_draws_df.shrinkr_fit]{as_draws_df.shrinkr_fit()}} for posterior package format,

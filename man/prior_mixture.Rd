@@ -20,12 +20,9 @@ All standard distributional operations (sampling, density, quantiles,
 formatting) work automatically.
 }
 \examples{
-\dontrun{
-# Custom mixture
 mix <- prior_mixture(
   distributional::dist_normal(0, 0.1),
   distributional::dist_normal(0, 1),
   weights = c(0.7, 0.3)
 )
-}
 }

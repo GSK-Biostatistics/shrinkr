@@ -20,22 +20,14 @@ Invisibly returns the input object \code{x}.
 Displays formatted summary statistics for a fitted mixture model.
 }
 \examples{
-\dontrun{
+set.seed(1)
 samples <- list(
-  matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-  matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-  matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+  group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+  group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 )
-
-mix <- fit_mixture(samples, K_max = 5)
+mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 summ <- summary(mix)
-
-# Print summary
 print(summ)
-
-# With more decimal places
-print(summ, digits = 4)
-}
 }
 \seealso{
 \code{\link{summary.shrinkr_mixture}} for creating summaries

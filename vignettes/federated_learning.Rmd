@@ -282,6 +282,7 @@ cat("  95% CI: [", round(quantile(mu_tau_full$tau, 0.025), 4), ",",
 
 ```{r check_normality, fig.width=10, fig.height=8}
 # Visual checks for approximate normality
+oldpar <- par(no.readonly = TRUE)
 par(mfrow = c(3, 2))
 for(i in 1:6) {
   site_name <- names(site_posteriors)[i]
@@ -291,7 +292,7 @@ for(i in 1:6) {
   qqnorm(samples_i, main = paste("QQ Plot:", site_name))
   qqline(samples_i, col = "red", lwd = 2)
 }
-par(mfrow = c(1, 1))
+par(oldpar)
 ```
 
 ```{r normality_tests}
@@ -340,12 +341,13 @@ var_mean <- mean(variance_posterior)
 var_se <- sd(variance_posterior)
 
 # Check normality
+oldpar <- par(no.readonly = TRUE)
 par(mfrow = c(1, 2))
 hist(variance_posterior, breaks = 30, main = "Variance Posterior",
      xlab = "sigma^2", col = "lightblue")
 qqnorm(variance_posterior, main = "QQ Plot")
 qqline(variance_posterior, col = "red", lwd = 2)
-par(mfrow = c(1, 1))
+par(oldpar)
 
 # Skewness
 skew <- mean((variance_posterior - var_mean)^3) / var_se^3

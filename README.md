@@ -371,7 +371,7 @@ If you use `shrinkr` in your work, please cite:
 
 ```
 Maronge, J. M. (2026). shrinkr: Modular Bayesian Hierarchical Shrinkage Models. 
-R package version 0.4.4.
+R package version 0.4.5.
 ```
 
 ---

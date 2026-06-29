@@ -96,25 +96,13 @@ mixture and the data. Systematic deviations suggest model misfit.
 }
 }
 \examples{
-\dontrun{
-# Suppose the user supplied a list of 1-col matrices:
+set.seed(1)
 samples <- list(
-  matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-  matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-  matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+  group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+  group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 )
-
-mix <- fit_mixture(samples, K_max = 5)
-
-# Density plot with histogram overlay
-plot(mix, draws = samples, type = "density", variables = c("group1","group2"))
-
-# QQ plot to check goodness of fit
-plot(mix, draws = samples, type = "qq", variables = c("group1","group2"))
-
-# Joint fit, plot all marginals with histogram + KDE:
-plot(mix, draws = samples, type = "density", overlay = "both", facet = TRUE)
-}
+mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
+plot(mix, draws = samples, type = "density", variables = c("group1", "group2"))
 
 }
 \seealso{

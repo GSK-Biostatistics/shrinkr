@@ -27,19 +27,38 @@ Extracts posterior draws for the hyperparameters mu (global mean) and
 tau (heterogeneity standard deviation) from a fitted shrinkage model.
 }
 \examples{
-\dontrun{
-fit <- shrink(mixture = mix, hierarchical_priors = priors)
-
-# Extract hyperparameter draws
+set.seed(1)
+draws <- data.frame(
+  mu = rnorm(20, 0.2, 0.05),
+  tau = abs(rnorm(20, 0.3, 0.03)),
+  `theta[1]` = rnorm(20, 0.0, 0.1),
+  `theta[2]` = rnorm(20, 0.3, 0.1),
+  `theta[3]` = rnorm(20, 0.5, 0.1),
+  check.names = FALSE
+)
+draws$tau_squared <- draws$tau^2
+fit <- list(
+  fit = posterior::as_draws_df(draws),
+  data = list(
+    G = 3, K = 1, centered = FALSE,
+    vars = c("group1", "group2", "group3"),
+    quantiles = data.frame(
+      q2.5 = c(-0.20, 0.10, 0.30),
+      q50 = c(0.00, 0.30, 0.50),
+      q97.5 = c(0.20, 0.50, 0.70)
+    )
+  ),
+  summary = posterior::summarise_draws(
+    posterior::as_draws_df(draws),
+    "mean", "sd",
+    ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+  ),
+  diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+)
+class(fit) <- "shrinkr_fit"
 mu_tau <- extract_mu_tau(fit)
-
-# Summarize
 summarise_mu_tau(fit)
-
-# Visualize
-library(bayesplot)
-mcmc_pairs(mu_tau, pars = c("mu", "tau"))
-}
+posterior::summarise_draws(mu_tau)
 }
 \seealso{
 \code{\link[=shrink]{shrink()}} for fitting models,

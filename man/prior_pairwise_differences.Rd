@@ -30,24 +30,14 @@ inspect the prior distribution of \eqn{|\theta_i - \theta_j|} when
 choosing priors for Bayesian hierarchical models.
 }
 \examples{
-\dontrun{
-library(distributional)
-
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 1), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 )
-
-prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 2000)
-
-# Compute pairwise differences
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 pw <- prior_pairwise_differences(prior_pred)
 print(pw)
-plot(pw)
-
-# What range of pairwise differences does this prior imply?
 pw$overall_summary
-}
 }
 \seealso{
 \code{\link{sample_prior_predictive}} for generating prior predictive samples,

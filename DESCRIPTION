@@ -1,8 +1,8 @@
 Package: shrinkr
 Type: Package
 Title: Modular Bayesian Hierarchical Shrinkage Models
-Version: 0.4.4
-Date: 2026-06-15
+Version: 0.4.5
+Date: 2026-06-29
 Authors@R: c(
     person(given = c("Jacob", "M."),
            family = "Maronge",
@@ -15,12 +15,13 @@ Authors@R: c(
            role = "cph",
            comment = "R/stanmodels.R, configure, configure.win"))
 Description: 
-    Implements a two-stage Bayesian hierarchical modeling framework for
+ Implements a two-stage Bayesian hierarchical modeling framework for
     applying shrinkage to subgroup-specific effects. The package separates
     model fitting (Stage 1) from hierarchical shrinkage (Stage 2), enabling
-    modular sensitivity analyses without refitting expensive MCMC chains.
-    Supports flexible prior specifications through the distributional package,
-    mixture approximations via 'mclust', and efficient 'Stan'-based inference.
+    modular sensitivity analyses without refitting expensive Markov chain
+    Monte Carlo (MCMC) chains. Supports flexible prior specifications through
+    the 'distributional' package, mixture approximations via 'mclust', and
+    efficient 'Stan'-based inference.
 License: GPL (>= 3)
 Encoding: UTF-8
 Depends: R (>= 4.1)

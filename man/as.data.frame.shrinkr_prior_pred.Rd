@@ -28,26 +28,13 @@ Converts prior predictive samples to a tidy long-format data frame suitable
 for analysis and visualization with tidyverse tools.
 }
 \examples{
-\dontrun{
-library(distributional)
-
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 1), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 )
-
-prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 500)
-
-# Convert to data frame
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 df <- as.data.frame(prior_pred)
 head(df)
-
-# Use with dplyr
-library(dplyr)
-df \%>\%
-  group_by(group) \%>\%
-  summarise(mean_theta = mean(theta), sd_theta = sd(theta))
-}
 }
 \seealso{
 \code{\link{sample_prior_predictive}} for generating prior predictive samples

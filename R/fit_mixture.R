@@ -95,32 +95,14 @@
 #' \code{\link{as.data.frame.shrinkr_mixture}} for extracting component data
 #'
 #' @examples
-#' \dontrun{
-#' # Example with three groups
+#' set.seed(1)
 #' samples <- list(
-#'   group1 = matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-#'   group2 = matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-#'   group3 = matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+#'   group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+#'   group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1),
+#'   group3 = matrix(rnorm(100, 1.0, 0.5), ncol = 1)
 #' )
-#'
-#' # Let mclust choose K and covariance model via BIC:
-#' mix <- fit_mixture(samples, K_max = 5, verbose = TRUE)
-#' 
-#' # View the fit
-#' mix
+#' mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 #' summary(mix)
-#' plot(mix, draws = samples)
-#'
-#' # Restrict to diagonal models only:
-#' mix_diag <- fit_mixture(samples, K_max = 5, model_names = c("EEI","VVI"))
-#'
-#' # Pass EM controls and initialization through ...
-#' mix_tuned <- fit_mixture(
-#'   samples, K_max = 5,
-#'   control = mclust::emControl(eps = 1e-6, itmax = 5e3),
-#'   initialization = list(hcPairs = TRUE)
-#' )
-#' }
 #'
 #' @import mclust
 #' @importFrom stats cov complete.cases var

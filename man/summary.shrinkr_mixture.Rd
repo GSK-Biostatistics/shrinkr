@@ -23,24 +23,14 @@ Computes comprehensive summary statistics for fitted mixture components,
 including component-wise and variable-wise summaries.
 }
 \examples{
-\dontrun{
+set.seed(1)
 samples <- list(
-  matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-  matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-  matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+  group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+  group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 )
-
-mix <- fit_mixture(samples, K_max = 5)
-
-# Get detailed summary
+mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 summ <- summary(mix)
-
-# View component summaries
 summ$components
-
-# View variable-wise summaries
-summ$by_variable
-}
 }
 \seealso{
 \code{\link{fit_mixture}} for fitting mixture models,

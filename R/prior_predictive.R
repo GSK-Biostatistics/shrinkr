@@ -35,38 +35,13 @@
 #' @export
 #' 
 #' @examples
-#' \dontrun{
-#' library(distributional)
-#' 
-#' # Specify priors
 #' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_normal(0, 2.5), lower = 0)
+#'   mu = distributional::dist_normal(0, 5),
+#'   tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 #' )
-#' 
-#' # Sample from prior predictive
-#' prior_pred <- sample_prior_predictive(
-#'   hierarchical_priors = priors,
-#'   n_groups = 4,
-#'   n_draws = 1000
-#' )
-#' 
-#' # Visualize
-#' plot(prior_pred)
-#' 
-#' # Check implied spread of effects
-#' cat("Median implied range:", median(prior_pred$implied_range), "\n")
-#' cat("Median implied SD:", median(prior_pred$implied_sd), "\n")
-#' 
-#' # Extract as tidy data frame
-#' prior_df <- as.data.frame(prior_pred)
-#' 
-#' # Check prior implied theta distribution
-#' library(ggplot2)
-#' ggplot(prior_df, aes(x = theta, y = group)) +
-#'   geom_violin() +
-#'   labs(title = "Prior predictive distribution for theta")
-#' }
+#' prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
+#' median(prior_pred$implied_range)
+#' head(as.data.frame(prior_pred))
 sample_prior_predictive <- function(hierarchical_priors,
                                     n_groups,
                                     n_draws = 1000,
@@ -193,26 +168,13 @@ sample_prior_predictive <- function(hierarchical_priors,
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' library(distributional)
-#' 
 #' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_normal(0, 1), lower = 0)
+#'   mu = distributional::dist_normal(0, 5),
+#'   tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 #' )
-#' 
-#' prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 500)
-#' 
-#' # Convert to data frame
+#' prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 #' df <- as.data.frame(prior_pred)
 #' head(df)
-#' 
-#' # Use with dplyr
-#' library(dplyr)
-#' df %>%
-#'   group_by(group) %>%
-#'   summarise(mean_theta = mean(theta), sd_theta = sd(theta))
-#' }
 as.data.frame.shrinkr_prior_pred <- function(x, row.names = NULL, optional = FALSE, ...) {
   stopifnot(inherits(x, "shrinkr_prior_pred"))
   
@@ -265,25 +227,12 @@ as.data.frame.shrinkr_prior_pred <- function(x, row.names = NULL, optional = FAL
 #' @method plot shrinkr_prior_pred
 #'
 #' @examples
-#' \dontrun{
-#' library(distributional)
-#' 
 #' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_student_t(3, 0, 1), lower = 0)
+#'   mu = distributional::dist_normal(0, 5),
+#'   tau = distributional::dist_truncated(distributional::dist_student_t(3, 0, 1), lower = 0)
 #' )
-#' 
-#' prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 1000)
-#' 
-#' # Plot both hyperparameters and theta
-#' plot(prior_pred)
-#' 
-#' # Plot only hyperparameters
+#' prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 #' plot(prior_pred, type = "hyperparameters")
-#' 
-#' # Plot only theta
-#' plot(prior_pred, type = "theta")
-#' }
 plot.shrinkr_prior_pred <- function(x, type = c("both", "hyperparameters", "theta"), ...) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' required for plotting. Install with: install.packages('ggplot2')")
@@ -357,22 +306,12 @@ plot.shrinkr_prior_pred <- function(x, type = c("both", "hyperparameters", "thet
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' library(distributional)
-#' 
 #' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_normal(0, 1), lower = 0)
+#'   mu = distributional::dist_normal(0, 5),
+#'   tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 #' )
-#' 
-#' prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 1000)
-#' 
-#' # Print summary
+#' prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 #' print(prior_pred)
-#' 
-#' # Or just type the object name
-#' prior_pred
-#' }
 print.shrinkr_prior_pred <- function(x, ...) {
   stopifnot(inherits(x, "shrinkr_prior_pred"))
   
@@ -436,28 +375,13 @@ print.shrinkr_prior_pred <- function(x, ...) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' library(distributional)
-#' 
 #' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_normal(0, 1), lower = 0)
+#'   mu = distributional::dist_normal(0, 5),
+#'   tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 #' )
-#' 
-#' prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 1000)
-#' 
-#' # Get detailed summary
+#' prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 #' summ <- summary(prior_pred)
-#' 
-#' # View hyperparameter summaries
-#' summ$hyperparameters
-#' 
-#' # View theta summaries
 #' summ$theta
-#' 
-#' # Custom quantiles
-#' summary(prior_pred, probs = c(0.05, 0.25, 0.5, 0.75, 0.95))
-#' }
 summary.shrinkr_prior_pred <- function(object, probs = c(0.025, 0.5, 0.975), ...) {
   stopifnot(inherits(object, "shrinkr_prior_pred"))
   
@@ -533,23 +457,12 @@ summary.shrinkr_prior_pred <- function(object, probs = c(0.025, 0.5, 0.975), ...
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' library(distributional)
-#' 
 #' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_normal(0, 1), lower = 0)
+#'   mu = distributional::dist_normal(0, 5),
+#'   tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 #' )
-#' 
-#' prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 1000)
-#' summ <- summary(prior_pred)
-#' 
-#' # Print summary
-#' print(summ)
-#' 
-#' # With more decimal places
-#' print(summ, digits = 4)
-#' }
+#' prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
+#' print(summary(prior_pred))
 print.summary.shrinkr_prior_pred <- function(x, digits = 3, ...) {
   stopifnot(inherits(x, "summary.shrinkr_prior_pred"))
   
@@ -598,24 +511,14 @@ print.summary.shrinkr_prior_pred <- function(x, digits = 3, ...) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' library(distributional)
-#'
 #' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_normal(0, 1), lower = 0)
+#'   mu = distributional::dist_normal(0, 5),
+#'   tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 #' )
-#'
-#' prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 2000)
-#'
-#' # Compute pairwise differences
+#' prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 #' pw <- prior_pairwise_differences(prior_pred)
 #' print(pw)
-#' plot(pw)
-#'
-#' # What range of pairwise differences does this prior imply?
 #' pw$overall_summary
-#' }
 prior_pairwise_differences <- function(prior_pred) {
   stopifnot(inherits(prior_pred, "shrinkr_prior_pred"))
   
@@ -744,23 +647,13 @@ print.shrinkr_prior_contrasts <- function(x, digits = 3, ...) {
 #' @method plot shrinkr_prior_contrasts
 #'
 #' @examples
-#' \dontrun{
-#' library(distributional)
-#'
 #' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_normal(0, 1), lower = 0)
+#'   mu = distributional::dist_normal(0, 5),
+#'   tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 #' )
-#'
-#' prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 2000)
+#' prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 #' pw <- prior_pairwise_differences(prior_pred)
-#'
-#' # Pooled density
 #' plot(pw)
-#'
-#' # Faceted by pair
-#' plot(pw, by_pair = TRUE)
-#' }
 plot.shrinkr_prior_contrasts <- function(x,
                                          by_pair = FALSE,
                                          ...) {

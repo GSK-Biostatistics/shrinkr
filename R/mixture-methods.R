@@ -24,25 +24,14 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' set.seed(1)
 #' samples <- list(
-#'   matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+#'   group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+#'   group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 #' )
-#'
-#' mix <- fit_mixture(samples, K_max = 5)
-#'
-#' # Convert to data frame
+#' mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 #' df <- as.data.frame(mix)
 #' head(df)
-#'
-#' # Use with dplyr
-#' library(dplyr)
-#' df %>%
-#'   group_by(variable) %>%
-#'   summarise(weighted_mean = sum(weight * mean))
-#' }
 as.data.frame.shrinkr_mixture <- function(x, row.names = NULL, optional = FALSE, ...) {
   stopifnot(inherits(x, "shrinkr_mixture"))
   
@@ -74,21 +63,13 @@ as.data.frame.shrinkr_mixture <- function(x, row.names = NULL, optional = FALSE,
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' set.seed(1)
 #' samples <- list(
-#'   matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+#'   group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+#'   group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 #' )
-#'
-#' mix <- fit_mixture(samples, K_max = 5)
-#'
-#' # Print summary
+#' mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 #' print(mix)
-#'
-#' # Or just type the object name
-#' mix
-#' }
 print.shrinkr_mixture <- function(x, ...) {
   if (!requireNamespace("cli", quietly = TRUE)) {
     stop("Package 'cli' required. Install with: install.packages('cli')")
@@ -153,24 +134,14 @@ print.shrinkr_mixture <- function(x, ...) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' set.seed(1)
 #' samples <- list(
-#'   matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+#'   group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+#'   group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 #' )
-#'
-#' mix <- fit_mixture(samples, K_max = 5)
-#'
-#' # Get detailed summary
+#' mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 #' summ <- summary(mix)
-#'
-#' # View component summaries
 #' summ$components
-#'
-#' # View variable-wise summaries
-#' summ$by_variable
-#' }
 summary.shrinkr_mixture <- function(object, ...) {
   stopifnot(inherits(object, "shrinkr_mixture"))
   
@@ -241,22 +212,14 @@ summary.shrinkr_mixture <- function(object, ...) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' set.seed(1)
 #' samples <- list(
-#'   matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+#'   group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+#'   group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 #' )
-#'
-#' mix <- fit_mixture(samples, K_max = 5)
+#' mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 #' summ <- summary(mix)
-#'
-#' # Print summary
 #' print(summ)
-#'
-#' # With more decimal places
-#' print(summ, digits = 4)
-#' }
 print.summary.shrinkr_mixture <- function(x, digits = 3, ...) {
   stopifnot(inherits(x, "summary.shrinkr_mixture"))
   
@@ -348,25 +311,13 @@ print.summary.shrinkr_mixture <- function(x, digits = 3, ...) {
 #' @return A `ggplot2` object.
 #'
 #' @examples
-#' \dontrun{
-#' # Suppose the user supplied a list of 1-col matrices:
+#' set.seed(1)
 #' samples <- list(
-#'   matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-#'   matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+#'   group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+#'   group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 #' )
-#'
-#' mix <- fit_mixture(samples, K_max = 5)
-#'
-#' # Density plot with histogram overlay
-#' plot(mix, draws = samples, type = "density", variables = c("group1","group2"))
-#'
-#' # QQ plot to check goodness of fit
-#' plot(mix, draws = samples, type = "qq", variables = c("group1","group2"))
-#'
-#' # Joint fit, plot all marginals with histogram + KDE:
-#' plot(mix, draws = samples, type = "density", overlay = "both", facet = TRUE)
-#' }
+#' mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
+#' plot(mix, draws = samples, type = "density", variables = c("group1", "group2"))
 #'
 #' @seealso [fit_mixture()] for fitting mixture models
 #'

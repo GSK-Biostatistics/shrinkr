@@ -33,12 +33,8 @@ before passing to \code{\link[=shrink]{shrink()}}:
 }\if{html}{\out{</div>}}
 }
 \examples{
-\dontrun{
-library(distributional)
-# Spike-and-slab for tau — must truncate for scale parameter
-tau_prior <- dist_truncated(
+tau_prior <- distributional::dist_truncated(
   prior_spike_slab(spike_prob = 0.5, spike_scale = 0.01, slab_scale = 1),
   lower = 0
 )
-}
 }

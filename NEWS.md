@@ -1,3 +1,32 @@
+# shrinkr 0.4.5
+
+## Documentation
+
+* **Improved CRAN compatibility.** Updated package metadata and documentation
+  following CRAN review comments, including expanding Markov chain Monte Carlo
+  (MCMC) on first use in the `DESCRIPTION` file.
+
+* **Modernized examples.** Reworked documentation examples so lightweight
+  examples are executable and self-contained. Replaced unnecessary
+  `\dontrun{}` blocks with executable examples or `\donttest{}` where
+  appropriate.
+
+* **Protected computationally intensive examples.** Kept examples that require
+  fitting Bayesian hierarchical models with Stan inside `\dontrun{}` because
+  they are not suitable for routine CRAN example checks.
+
+* **Improved method documentation examples.** Added small example objects for
+  selected `shrinkr_fit` and mixture-method documentation so examples no longer
+  depend on objects created in other help pages.
+
+## Vignettes
+
+* **Restored graphical parameters.** Updated the `federated_learning` vignette
+  to save and restore graphical settings after calls to `par()`, avoiding
+  persistent changes to the user's plotting environment.
+
+---
+
 # shrinkr 0.4.4
 
 ## New Features
@@ -22,11 +51,10 @@
 
 ---
 
-
 # shrinkr 0.4.3
  
 ## Bug Fixes
- 
+
 * **Fixed inverse-gamma prior translation in `R/utils.R`.** The branch
   handling `dist_inverse_gamma` priors on `tau` was reading from
   `params$shape` and `params$scale`, but `distributional::parameters()`
@@ -44,8 +72,9 @@
   distributional stores the bounds as `l` and `u`. Same pattern as the IG
   bug: branch silently failed, format-string fallback rescued it. The
   branch now reads `tau_raw$l` / `tau_raw$u` and dispatches correctly.
+
 ## Internal Changes
- 
+
 * **Removed unused `stan_code()` generic and methods** from `R/prior_system.R`.
   The generic and its 9 distributional-family methods were vestiges of an
   earlier, abandoned design where Stan code was assembled at runtime from
@@ -64,6 +93,7 @@
   Removing it leaves a cleaner, more transparent failure mode: an
   unsupported prior raises a clear error rather than silently passing
   through a regex parser.
+
 ---
 
 # shrinkr 0.4.2
@@ -89,7 +119,6 @@
   posterior mean, sd, quantiles, and convergence diagnostics (`rhat`, `ess_bulk`,
   `ess_tail`) when multiple chains are available. Closes a naming-symmetry gap:
   previously `extract_mu_tau()` existed but had no summary counterpart.
-
 
 ## Internal Changes
 
@@ -333,7 +362,7 @@ This release focuses on core functionality with a clean, stable API for internal
 
 ## Technical Details
 
-* Built on **rstan** for MCMC sampling
+* Built on **rstan** for Markov chain Monte Carlo (MCMC) sampling
 * Uses **mclust** for mixture model fitting
 * Integrates with **posterior** and **distributional** packages
 * Supports centered and non-centered parameterizations

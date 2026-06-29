@@ -29,25 +29,14 @@ Converts a fitted mixture model to a tidy long-format data frame.
 This is essentially an accessor for the \code{components} element.
 }
 \examples{
-\dontrun{
+set.seed(1)
 samples <- list(
-  matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-  matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-  matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
+  group1 = matrix(rnorm(100, 0.0, 0.5), ncol = 1),
+  group2 = matrix(rnorm(100, 0.5, 0.5), ncol = 1)
 )
-
-mix <- fit_mixture(samples, K_max = 5)
-
-# Convert to data frame
+mix <- fit_mixture(samples, K_max = 2, verbose = FALSE)
 df <- as.data.frame(mix)
 head(df)
-
-# Use with dplyr
-library(dplyr)
-df \%>\%
-  group_by(variable) \%>\%
-  summarise(weighted_mean = sum(weight * mean))
-}
 }
 \seealso{
 \code{\link{fit_mixture}} for fitting mixture models

@@ -20,23 +20,12 @@ Invisibly returns the input object \code{x}.
 Displays formatted summary statistics for prior predictive samples.
 }
 \examples{
-\dontrun{
-library(distributional)
-
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_normal(0, 1), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_normal(0, 1), lower = 0)
 )
-
-prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 1000)
-summ <- summary(prior_pred)
-
-# Print summary
-print(summ)
-
-# With more decimal places
-print(summ, digits = 4)
-}
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
+print(summary(prior_pred))
 }
 \seealso{
 \code{\link{summary.shrinkr_prior_pred}} for creating summaries

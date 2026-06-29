@@ -105,42 +105,18 @@
 #'
 #' @examples
 #' \dontrun{
-#' library(distributional)
-#' 
-#' # Simulate Stage 1 posteriors
-#' samples <- list(
-#'   group1 = matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-#'   group2 = matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-#'   group3 = matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
-#' )
-#' 
-#' # Fit mixture approximation
-#' mix <- fit_mixture(samples, K_max = 3)
-#' plot(mix, draws = samples)  # Check quality
-#' 
-#' # Apply shrinkage with default priors
-#' fit <- shrink(mixture = mix)
-#' print(fit)
-#' plot(fit)
-#' 
-#' # Custom priors (half-t for heavier tails)
+#' # This example fits a Stan model, so it is not run during package checks.
 #' priors <- list(
-#'   mu = dist_normal(0, 10),
-#'   tau = dist_truncated(dist_student_t(3, 0, 2.5), lower = 0)
+#'   mu = distributional::dist_normal(0, 10),
+#'   tau = distributional::dist_truncated(distributional::dist_student_t(3, 0, 2.5), lower = 0)
 #' )
-#' fit2 <- shrink(mixture = mix, hierarchical_priors = priors)
-#' 
-#' # Using point estimates only
-#' fit3 <- shrink(
+#' fit <- shrink(
 #'   mle = c(0.5, 1.2, -0.3),
 #'   var_matrix = c(0.1, 0.15, 0.12),
-#'   hierarchical_priors = priors
+#'   hierarchical_priors = priors,
+#'   iter = 1000, chains = 2, seed = 1
 #' )
-#' 
-#' # Extract results
-#' mu_tau <- extract_mu_tau(fit)
-#' mu_tau_summary <- summarize_mu_tau(fit)
-#' theta_summary <- summarize_theta(fit)
+#' summarise_theta(fit)
 #' }
 #'
 #' @seealso 

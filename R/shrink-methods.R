@@ -184,34 +184,12 @@ summary.shrinkr_fit <- function(object,
 #' @method plot shrinkr_fit
 #'
 #' @examples
+#' # Plotting requires a fitted shrinkr_fit object from shrink().
+#' # The full example is not run because it fits a Stan model.
 #' \dontrun{
-#' library(distributional)
-#' 
-#' # Fit model
-#' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_normal(0, 2.5), lower = 0)
-#' )
 #' fit <- shrink(mixture = mix, hierarchical_priors = priors)
-#' 
-#' # Basic shrinkage plot with side-by-side estimates
 #' plot(fit)
-#' plot(fit, type = "shrinkage")
-#' 
-#' # Full diagnostics
-#' plot(fit, type = "diagnostics")
-#' 
-#' # Customized shrinkage plot
-#' plot(
-#'   fit,
-#'   group_names = c("Control", "Low Dose", "Med Dose", "High Dose"),
-#'   show_arrows = TRUE,
-#'   interval_prob = 0.9,
-#'   dodge_width = 0.4
-#' )
-#' 
-#' # Minimal version
-#' plot(fit, show_arrows = FALSE, show_intervals = FALSE)
+#' plot(fit, show_arrows = TRUE, interval_prob = 0.95)
 #' }
 plot.shrinkr_fit <- function(x,
                              type = c("shrinkage", "diagnostics"),
@@ -533,19 +511,38 @@ plot.shrinkr_fit <- function(x,
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' fit <- shrink(mixture = mix, hierarchical_priors = priors)
-#' 
-#' # Extract hyperparameter draws
+#' set.seed(1)
+#' draws <- data.frame(
+#'   mu = rnorm(20, 0.2, 0.05),
+#'   tau = abs(rnorm(20, 0.3, 0.03)),
+#'   `theta[1]` = rnorm(20, 0.0, 0.1),
+#'   `theta[2]` = rnorm(20, 0.3, 0.1),
+#'   `theta[3]` = rnorm(20, 0.5, 0.1),
+#'   check.names = FALSE
+#' )
+#' draws$tau_squared <- draws$tau^2
+#' fit <- list(
+#'   fit = posterior::as_draws_df(draws),
+#'   data = list(
+#'     G = 3, K = 1, centered = FALSE,
+#'     vars = c("group1", "group2", "group3"),
+#'     quantiles = data.frame(
+#'       q2.5 = c(-0.20, 0.10, 0.30),
+#'       q50 = c(0.00, 0.30, 0.50),
+#'       q97.5 = c(0.20, 0.50, 0.70)
+#'     )
+#'   ),
+#'   summary = posterior::summarise_draws(
+#'     posterior::as_draws_df(draws),
+#'     "mean", "sd",
+#'     ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+#'   ),
+#'   diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+#' )
+#' class(fit) <- "shrinkr_fit"
 #' mu_tau <- extract_mu_tau(fit)
-#' 
-#' # Summarize
 #' summarise_mu_tau(fit)
-#' 
-#' # Visualize
-#' library(bayesplot)
-#' mcmc_pairs(mu_tau, pars = c("mu", "tau"))
-#' }
+#' posterior::summarise_draws(mu_tau)
 extract_mu_tau <- function(x, ...) {
   # Extract all draws directly from Stan fit (not via S3 method)
   draws <- posterior::as_draws_df(x$fit, ...)
@@ -581,24 +578,38 @@ extract_mu_tau <- function(x, ...) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' fit <- shrink(mixture = mix, hierarchical_priors = priors)
-#' 
-#' # Extract theta draws
+#' set.seed(1)
+#' draws <- data.frame(
+#'   mu = rnorm(20, 0.2, 0.05),
+#'   tau = abs(rnorm(20, 0.3, 0.03)),
+#'   `theta[1]` = rnorm(20, 0.0, 0.1),
+#'   `theta[2]` = rnorm(20, 0.3, 0.1),
+#'   `theta[3]` = rnorm(20, 0.5, 0.1),
+#'   check.names = FALSE
+#' )
+#' draws$tau_squared <- draws$tau^2
+#' fit <- list(
+#'   fit = posterior::as_draws_df(draws),
+#'   data = list(
+#'     G = 3, K = 1, centered = FALSE,
+#'     vars = c("group1", "group2", "group3"),
+#'     quantiles = data.frame(
+#'       q2.5 = c(-0.20, 0.10, 0.30),
+#'       q50 = c(0.00, 0.30, 0.50),
+#'       q97.5 = c(0.20, 0.50, 0.70)
+#'     )
+#'   ),
+#'   summary = posterior::summarise_draws(
+#'     posterior::as_draws_df(draws),
+#'     "mean", "sd",
+#'     ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+#'   ),
+#'   diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+#' )
+#' class(fit) <- "shrinkr_fit"
 #' theta_draws <- extract_theta(fit)
-#' 
-#' # Summarize
-#' library(posterior)
-#' summarise_draws(theta_draws)
-#' 
-#' # Visualize
-#' library(bayesplot)
-#' mcmc_intervals(theta_draws)
-#' 
-#' # Compare to summaries
-#' theta_summary <- summarise_theta(fit)
-#' print(theta_summary)
-#' }
+#' posterior::summarise_draws(theta_draws)
+#' summarise_theta(fit)
 extract_theta <- function(x, ...) {
   stopifnot(inherits(x, "shrinkr_fit"))
   
@@ -645,27 +656,38 @@ extract_theta <- function(x, ...) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' fit <- shrink(mixture = mix, hierarchical_priors = priors)
-#' 
-#' # User-facing parameters only (default)
-#' all_draws <- as_draws_df(fit)
-#' variables(all_draws)  # mu, tau, theta[1], ..., tau_squared
-#' 
-#' # Include internal parameters for diagnostics
-#' all_draws_internal <- as_draws_df(fit, include_internals = TRUE)
-#' variables(all_draws_internal)  # includes theta_c, z
-#' 
-#' # Just theta parameters
-#' theta_draws <- as_draws_df(fit, variables = "theta")
-#' 
-#' # Specific thetas
-#' theta12_draws <- as_draws_df(fit, variables = c("theta[1]", "theta[2]"))
-#' 
-#' # Work with draws
-#' library(posterior)
-#' summarise_draws(all_draws)
-#' }
+#' set.seed(1)
+#' draws <- data.frame(
+#'   mu = rnorm(20, 0.2, 0.05),
+#'   tau = abs(rnorm(20, 0.3, 0.03)),
+#'   `theta[1]` = rnorm(20, 0.0, 0.1),
+#'   `theta[2]` = rnorm(20, 0.3, 0.1),
+#'   `theta[3]` = rnorm(20, 0.5, 0.1),
+#'   check.names = FALSE
+#' )
+#' draws$tau_squared <- draws$tau^2
+#' fit <- list(
+#'   fit = posterior::as_draws_df(draws),
+#'   data = list(
+#'     G = 3, K = 1, centered = FALSE,
+#'     vars = c("group1", "group2", "group3"),
+#'     quantiles = data.frame(
+#'       q2.5 = c(-0.20, 0.10, 0.30),
+#'       q50 = c(0.00, 0.30, 0.50),
+#'       q97.5 = c(0.20, 0.50, 0.70)
+#'     )
+#'   ),
+#'   summary = posterior::summarise_draws(
+#'     posterior::as_draws_df(draws),
+#'     "mean", "sd",
+#'     ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+#'   ),
+#'   diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+#' )
+#' class(fit) <- "shrinkr_fit"
+#' all_draws <- posterior::as_draws_df(fit)
+#' posterior::variables(all_draws)
+#' theta_draws <- posterior::as_draws_df(fit, variables = c("theta[1]", "theta[2]"))
 as_draws_df.shrinkr_fit <- function(x, 
                                     variables = NULL,
                                     include_internals = FALSE,
@@ -728,16 +750,38 @@ as_draws_df.shrinkr_fit <- function(x,
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' fit <- shrink(mixture = mix, hierarchical_priors = priors)
-#' 
-#' # Extract as data frame
+#' set.seed(1)
+#' draws <- data.frame(
+#'   mu = rnorm(20, 0.2, 0.05),
+#'   tau = abs(rnorm(20, 0.3, 0.03)),
+#'   `theta[1]` = rnorm(20, 0.0, 0.1),
+#'   `theta[2]` = rnorm(20, 0.3, 0.1),
+#'   `theta[3]` = rnorm(20, 0.5, 0.1),
+#'   check.names = FALSE
+#' )
+#' draws$tau_squared <- draws$tau^2
+#' fit <- list(
+#'   fit = posterior::as_draws_df(draws),
+#'   data = list(
+#'     G = 3, K = 1, centered = FALSE,
+#'     vars = c("group1", "group2", "group3"),
+#'     quantiles = data.frame(
+#'       q2.5 = c(-0.20, 0.10, 0.30),
+#'       q50 = c(0.00, 0.30, 0.50),
+#'       q97.5 = c(0.20, 0.50, 0.70)
+#'     )
+#'   ),
+#'   summary = posterior::summarise_draws(
+#'     posterior::as_draws_df(draws),
+#'     "mean", "sd",
+#'     ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+#'   ),
+#'   diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+#' )
+#' class(fit) <- "shrinkr_fit"
 #' draws_df <- as.data.frame(fit)
 #' head(draws_df)
-#' 
-#' # Just mu and tau
 #' mu_tau_df <- as.data.frame(fit, variables = c("mu", "tau"))
-#' }
 as.data.frame.shrinkr_fit <- function(x, 
                                       row.names = NULL, 
                                       optional = FALSE, 
@@ -788,25 +832,38 @@ as.data.frame.shrinkr_fit <- function(x,
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' fit <- shrink(mixture = mix, hierarchical_priors = priors)
-#' 
-#' # Basic summary
-#' theta_summary <- summarise_theta(fit)
-#' print(theta_summary)
-#' 
-#' # Custom quantiles
-#' theta_summary <- summarise_theta(fit, probs = c(0.05, 0.5, 0.95))
-#' 
-#' # With custom group names
-#' theta_summary <- summarise_theta(
-#'   fit, 
-#'   group_names = c("Control", "Treatment A", "Treatment B")
+#' set.seed(1)
+#' draws <- data.frame(
+#'   mu = rnorm(20, 0.2, 0.05),
+#'   tau = abs(rnorm(20, 0.3, 0.03)),
+#'   `theta[1]` = rnorm(20, 0.0, 0.1),
+#'   `theta[2]` = rnorm(20, 0.3, 0.1),
+#'   `theta[3]` = rnorm(20, 0.5, 0.1),
+#'   check.names = FALSE
 #' )
-#' 
-#' # Custom measures
-#' theta_summary <- summarise_theta(fit, measures = c("mean", "median", "mad"))
-#' }
+#' draws$tau_squared <- draws$tau^2
+#' fit <- list(
+#'   fit = posterior::as_draws_df(draws),
+#'   data = list(
+#'     G = 3, K = 1, centered = FALSE,
+#'     vars = c("group1", "group2", "group3"),
+#'     quantiles = data.frame(
+#'       q2.5 = c(-0.20, 0.10, 0.30),
+#'       q50 = c(0.00, 0.30, 0.50),
+#'       q97.5 = c(0.20, 0.50, 0.70)
+#'     )
+#'   ),
+#'   summary = posterior::summarise_draws(
+#'     posterior::as_draws_df(draws),
+#'     "mean", "sd",
+#'     ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+#'   ),
+#'   diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+#' )
+#' class(fit) <- "shrinkr_fit"
+#' summarise_theta(fit)
+#' summarise_theta(fit, probs = c(0.05, 0.5, 0.95))
+#' summarise_theta(fit, group_names = c("Control", "A", "B"))
 summarise_theta <- function(fit, 
                             probs = c(0.025, 0.5, 0.975),
                             group_names = NULL,
@@ -936,19 +993,37 @@ summarize_theta <- summarise_theta
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' fit <- shrink(mixture = mix, hierarchical_priors = priors)
-#'
-#' # Basic summary
-#' mu_tau_summary <- summarise_mu_tau(fit)
-#' print(mu_tau_summary)
-#'
-#' # Custom quantiles
-#' mu_tau_summary <- summarise_mu_tau(fit, probs = c(0.05, 0.5, 0.95))
-#'
-#' # Custom measures
-#' mu_tau_summary <- summarise_mu_tau(fit, measures = c("mean", "median", "mad"))
-#' }
+#' set.seed(1)
+#' draws <- data.frame(
+#'   mu = rnorm(20, 0.2, 0.05),
+#'   tau = abs(rnorm(20, 0.3, 0.03)),
+#'   `theta[1]` = rnorm(20, 0.0, 0.1),
+#'   `theta[2]` = rnorm(20, 0.3, 0.1),
+#'   `theta[3]` = rnorm(20, 0.5, 0.1),
+#'   check.names = FALSE
+#' )
+#' draws$tau_squared <- draws$tau^2
+#' fit <- list(
+#'   fit = posterior::as_draws_df(draws),
+#'   data = list(
+#'     G = 3, K = 1, centered = FALSE,
+#'     vars = c("group1", "group2", "group3"),
+#'     quantiles = data.frame(
+#'       q2.5 = c(-0.20, 0.10, 0.30),
+#'       q50 = c(0.00, 0.30, 0.50),
+#'       q97.5 = c(0.20, 0.50, 0.70)
+#'     )
+#'   ),
+#'   summary = posterior::summarise_draws(
+#'     posterior::as_draws_df(draws),
+#'     "mean", "sd",
+#'     ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+#'   ),
+#'   diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
+#' )
+#' class(fit) <- "shrinkr_fit"
+#' summarise_mu_tau(fit)
+#' summarise_mu_tau(fit, probs = c(0.05, 0.5, 0.95))
 summarise_mu_tau <- function(fit,
                              probs = c(0.025, 0.5, 0.975),
                              measures = NULL) {
@@ -1047,35 +1122,38 @@ summarize_mu_tau <- summarise_mu_tau
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' fit <- shrink(mixture = mix, hierarchical_priors = priors)
-#' 
-#' # Pairwise contrast: group 2 vs group 1
-#' L <- matrix(c(-1, 1, 0, 0), nrow = 1)
-#' contrast <- theta_contrasts(fit, L, labels = "Trt2_vs_Trt1")
-#' 
-#' # Multiple contrasts
-#' L <- rbind(
-#'   c(-1, 1, 0, 0),   # Group 2 vs 1
-#'   c(-1, 0, 1, 0),   # Group 3 vs 1
-#'   c(0, -1, 1, 0)    # Group 3 vs 2
+#' set.seed(1)
+#' draws <- data.frame(
+#'   mu = rnorm(20, 0.2, 0.05),
+#'   tau = abs(rnorm(20, 0.3, 0.03)),
+#'   `theta[1]` = rnorm(20, 0.0, 0.1),
+#'   `theta[2]` = rnorm(20, 0.3, 0.1),
+#'   `theta[3]` = rnorm(20, 0.5, 0.1),
+#'   check.names = FALSE
 #' )
-#' contrasts <- theta_contrasts(
-#'   fit, L,
-#'   labels = c("2vs1", "3vs1", "3vs2")
+#' draws$tau_squared <- draws$tau^2
+#' fit <- list(
+#'   fit = posterior::as_draws_df(draws),
+#'   data = list(
+#'     G = 3, K = 1, centered = FALSE,
+#'     vars = c("group1", "group2", "group3"),
+#'     quantiles = data.frame(
+#'       q2.5 = c(-0.20, 0.10, 0.30),
+#'       q50 = c(0.00, 0.30, 0.50),
+#'       q97.5 = c(0.20, 0.50, 0.70)
+#'     )
+#'   ),
+#'   summary = posterior::summarise_draws(
+#'     posterior::as_draws_df(draws),
+#'     "mean", "sd",
+#'     ~posterior::quantile2(., probs = c(0.025, 0.5, 0.975))
+#'   ),
+#'   diagnostics = list(n_divergent = 0, max_treedepth = 0, n_leapfrog = 0)
 #' )
-#' 
-#' # Summarize contrasts
-#' library(posterior)
-#' summarise_draws(contrasts)
-#' 
-#' # Visualize
-#' library(bayesplot)
-#' mcmc_areas(contrasts, regex_pars = ".*")
-#' 
-#' # Probability that contrast > 0
-#' mean(contrasts$`2vs1` > 0)
-#' }
+#' class(fit) <- "shrinkr_fit"
+#' L <- matrix(c(-1, 1, 0), nrow = 1)
+#' contrast <- theta_contrasts(fit, L, labels = "group2_vs_group1")
+#' posterior::summarise_draws(contrast)
 theta_contrasts <- function(fit, contrast_matrix, labels = NULL) {
   if (!requireNamespace("posterior", quietly = TRUE)) {
     cli::cli_abort("Package {.pkg posterior} required. Install with: {.code install.packages('posterior')}")

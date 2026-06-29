@@ -98,31 +98,18 @@
 ## usethis namespace: end
 #' @examples
 #' \dontrun{
+#' # This example fits a Stan model, so it is not run during package checks.
 #' library(shrinkr)
-#' library(distributional)
-#' 
-#' # Generate Stage 1 posterior samples
-#' set.seed(123)
-#' samples <- list(
-#'   group1 = matrix(rnorm(2000, 0.0, 0.5), ncol = 1),
-#'   group2 = matrix(rnorm(2000, 0.5, 0.5), ncol = 1),
-#'   group3 = matrix(rnorm(2000, 1.0, 0.5), ncol = 1)
-#' )
-#' 
-#' # Fit mixture approximation
-#' mix <- fit_mixture(samples, K_max = 3)
-#' 
-#' # Apply hierarchical shrinkage
 #' priors <- list(
-#'   mu = dist_normal(0, 5),
-#'   tau = dist_truncated(dist_student_t(3, 0, 1), lower = 0)
+#'   mu = distributional::dist_normal(0, 5),
+#'   tau = distributional::dist_truncated(distributional::dist_student_t(3, 0, 1), lower = 0)
 #' )
-#' 
-#' fit <- shrink(mixture = mix, hierarchical_priors = priors)
-#' 
-#' # Examine results
+#' fit <- shrink(
+#'   mle = c(0.0, 0.5, 1.0),
+#'   var_matrix = c(0.25, 0.25, 0.25),
+#'   hierarchical_priors = priors,
+#'   iter = 1000, chains = 2, seed = 1
+#' )
 #' summary(fit)
-#' plot(fit)
-#' extract_mu_tau(fit)
 #' }
 "_PACKAGE"

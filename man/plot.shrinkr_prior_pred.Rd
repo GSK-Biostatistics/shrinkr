@@ -28,25 +28,12 @@ Visualizes the prior predictive distribution for hyperparameters (mu and tau)
 and subgroup effects (theta). Requires the ggplot2 package.
 }
 \examples{
-\dontrun{
-library(distributional)
-
 priors <- list(
-  mu = dist_normal(0, 5),
-  tau = dist_truncated(dist_student_t(3, 0, 1), lower = 0)
+  mu = distributional::dist_normal(0, 5),
+  tau = distributional::dist_truncated(distributional::dist_student_t(3, 0, 1), lower = 0)
 )
-
-prior_pred <- sample_prior_predictive(priors, n_groups = 4, n_draws = 1000)
-
-# Plot both hyperparameters and theta
-plot(prior_pred)
-
-# Plot only hyperparameters
+prior_pred <- sample_prior_predictive(priors, n_groups = 3, n_draws = 50)
 plot(prior_pred, type = "hyperparameters")
-
-# Plot only theta
-plot(prior_pred, type = "theta")
-}
 }
 \seealso{
 \code{\link{sample_prior_predictive}} for generating samples,
